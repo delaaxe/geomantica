@@ -1,0 +1,31 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Stage only the site files; keeps .claude/, .gitattributes etc. off the CDN.
+      - name: Stage site
+        run: |
+          mkdir -p dist
+          rsync -a --exclude='.*' --exclude='dist' ./ dist/
+          ls -la dist
+
+      # --branch=main is required: the Pages project's production branch is "main",
+      # while this repo builds from "master". Any other value deploys a preview
+      # instead of updating geomantica.pages.dev.
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=geomantica --branch=main
