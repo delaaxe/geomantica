@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#151A1D">
+<meta name="color-scheme" content="light dark">
+<title>Geomantic judgment</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23151A1D'/%3E%3Cg fill='%23B4A343'%3E%3Ccircle cx='10' cy='7' r='2.4'/%3E%3Ccircle cx='22' cy='7' r='2.4'/%3E%3Ccircle cx='10' cy='14' r='2.4'/%3E%3Ccircle cx='22' cy='14' r='2.4'/%3E%3Ccircle cx='16' cy='21' r='2.4'/%3E%3Ccircle cx='16' cy='28' r='2.4'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Symbols+2&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light dark;
+  --ground:#151A1D; --panel:#1D2429; --rule:#39444B;
+  --bone:#E8E3D6; --dim:#8E9A9E; --citrine:#B4A343; --err:#C46A4A;
+  /* Malkuth's four colours, standing for the elements */
+  --el-fire:#A0552F; --el-air:#B4A343; --el-water:#66763F; --el-earth:#6E5A45;
+  --tint:.17; --tint-hover:.32; --tint-sel:.46;
+  --symbol:'Noto Sans Symbols 2','Apple Symbols','Segoe UI Symbol',serif;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --ground:#EDE9E0; --panel:#F8F6F1; --rule:#C6BEB0;
+    --bone:#22272A; --dim:#6B7378; --citrine:#8A7A18; --err:#9E3B1C;
+    --el-fire:#8C4526; --el-air:#8A7A18; --el-water:#4D5A2C; --el-earth:#2E2A25;
+    --tint:.15; --tint-hover:.28; --tint-sel:.40;
+  }
+}
+html{background:var(--ground);}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{min-height:100vh;}
+body{
+  background:var(--ground); color:var(--bone);
+  font-family:'Spectral',Georgia,serif;
+  padding:22px; padding:max(22px,env(safe-area-inset-top)) 22px 22px;
+  -webkit-text-size-adjust:100%;
+}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--rule);padding-bottom:14px;}
+.head h1{font-size:26px;font-weight:600;margin:0;letter-spacing:-.01em;}
+.sub{margin:5px 0 0;color:var(--dim);font-size:14px;}
+.method{display:flex;gap:6px;}
+.charthead{display:flex;justify-content:flex-end;margin-bottom:4px;}
+.charthead .method{gap:14px;}
+.vlink{background:none;border:0;padding:0;font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);cursor:pointer;}
+.vlink.on{color:var(--bone);text-decoration:underline;text-underline-offset:4px;}
+.vlink:focus-visible{outline:2px solid var(--citrine);outline-offset:3px;}
+.pill{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;padding:7px 11px;border:1px solid var(--rule);background:transparent;
+  color:var(--dim);border-radius:2px;cursor:pointer;}
+.pill.on{color:var(--ground);background:var(--bone);border-color:var(--bone);}
+.pill:focus-visible,.cast:focus-visible{outline:2px solid var(--citrine);outline-offset:2px;}
+.wname{font-family:'IBM Plex Mono',monospace;font-size:8.2px;letter-spacing:.02em;fill:var(--dim);}
+.hubcap{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;fill:var(--dim);}
+.hubname{font-family:'Spectral',Georgia,serif;font-size:15px;font-weight:600;fill:var(--bone);}
+
+.castbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:16px 0 0;}
+.castfield{display:flex;gap:8px;flex:1 1 300px;min-width:240px;}
+.paste{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;padding:0 15px;border:1px solid var(--rule);background:transparent;
+  color:var(--dim);border-radius:2px;cursor:pointer;white-space:nowrap;}
+.paste:hover{color:var(--bone);border-color:var(--bone);}
+.paste:active{background:var(--panel);}
+.paste:focus-visible{outline:2px solid var(--citrine);outline-offset:2px;}
+.paste[disabled]{opacity:.4;cursor:default;}
+.paste[disabled]:hover{color:var(--dim);border-color:var(--rule);}
+.iconbtn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:46px;
+  border:1px solid var(--rule);background:transparent;color:var(--dim);border-radius:2px;cursor:pointer;}
+.iconbtn:hover{color:var(--bone);border-color:var(--bone);}
+.iconbtn:active{background:var(--panel);}
+.iconbtn:focus-visible{outline:2px solid var(--citrine);outline-offset:2px;}
+.iconbtn svg{width:19px;height:19px;display:block;}
+.draftbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 0;}
+.draftbar .paste{padding:11px 18px;}
+.draftbar .sigsel{flex:1 1 210px;max-width:340px;}
+@media (max-width:560px){.draftbar .sigsel{max-width:none;}.draftbar .paste{flex:1 1 100%;}}
+.cast{flex:1 1 auto;min-width:0;background:var(--panel);border:1px solid var(--rule);color:var(--bone);
+  font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:19px;letter-spacing:.16em;
+  padding:12px 14px;border-radius:2px;}
+.cast:focus{outline:none;border-color:var(--citrine);}
+.cast::placeholder{color:#5B676C;letter-spacing:.16em;}
+.mothers{display:flex;gap:14px;}
+.mslot{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:5px;min-width:32px;height:46px;}
+.mlabel{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--dim);}
+.mempty{width:23px;height:29px;border:1px dashed var(--rule);border-radius:2px;}
+.count{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--dim);
+  width:54px;text-align:right;flex:0 0 auto;}
+.noteinput{flex:1 1 260px;min-width:180px;background:var(--ground);border:1px solid var(--rule);
+  color:var(--bone);font-family:'Spectral',Georgia,serif;font-size:15px;padding:9px 12px;border-radius:2px;}
+.noteinput::placeholder{color:#5B676C;}
+.noteinput:focus,.sigsel:focus{outline:none;border-color:var(--citrine);}
+.sigsel{flex:0 1 auto;max-width:100%;background:var(--ground);border:1px solid var(--rule);
+  color:var(--bone);border-radius:2px;
+  font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;padding:9px 10px;}
+.saved{margin-top:22px;border-top:1px solid var(--rule);padding-top:14px;}
+.savedlist{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:1px;}
+.crow{display:flex;align-items:center;gap:12px;row-gap:0;flex-wrap:wrap;padding:11px 12px;
+  background:var(--panel);border:1px solid var(--rule);border-radius:2px;}
+.crow:hover{border-color:var(--dim);}
+.crow.editing{border-color:var(--citrine);}
+.cbody{flex:1 1 auto;min-width:0;cursor:pointer;display:flex;align-items:center;gap:12px;}
+.cfig{flex:0 0 auto;display:flex;align-items:center;}
+.ctext{flex:1 1 auto;min-width:0;}
+.cedit{flex:0 0 100%;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  margin-top:11px;border-top:1px solid var(--rule);padding-top:11px;}
+.cbtn{flex:0 0 auto;background:none;border:1px solid transparent;color:var(--dim);cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;padding:5px 8px;border-radius:2px;}
+.cbtn:hover{color:var(--bone);border-color:var(--rule);}
+.cbtn.on{color:var(--citrine);border-color:var(--citrine);}
+.cbtn:focus-visible,.cdel:focus-visible,.back:focus-visible{outline:2px solid var(--citrine);outline-offset:2px;}
+.viewbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:16px 0 0;}
+.back{flex:0 0 auto;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;padding:9px 14px;border:1px solid var(--rule);background:transparent;
+  color:var(--dim);border-radius:2px;cursor:pointer;white-space:nowrap;}
+.back:hover{color:var(--bone);border-color:var(--bone);}
+.vbq{flex:1 1 220px;min-width:0;font-size:15px;line-height:1.35;}
+.vbq.none{color:var(--dim);font-style:italic;}
+.vbsig{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  letter-spacing:.04em;color:var(--dim);}
+.cnote{font-size:15px;line-height:1.35;}
+.cnote.none{color:var(--dim);font-style:italic;}
+.cmeta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--dim);
+  letter-spacing:.04em;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cdel{flex:0 0 auto;background:none;border:1px solid transparent;color:var(--dim);cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;padding:5px 8px;border-radius:2px;}
+.cdel:hover{color:var(--err);}
+.cdel.arm{color:var(--err);border-color:var(--err);}
+.hint{color:var(--dim);font-size:14px;line-height:1.45;margin:14px 0 0;max-width:52ch;}
+
+.grid{display:grid;grid-template-columns:minmax(340px,1fr) minmax(300px,400px);gap:26px;margin-top:16px;align-items:start;}
+@media (max-width:900px){.grid{grid-template-columns:1fr;gap:16px;}}
+
+.chart{width:100%;height:auto;display:block;touch-action:manipulation;}
+.region{cursor:pointer;fill-opacity:var(--tint);transition:fill-opacity .16s ease;}
+.region:hover{fill-opacity:var(--tint-hover);}
+.region.sel{fill-opacity:var(--tint-sel);}
+.region.sel:hover{fill-opacity:var(--tint-sel);}
+.region.sig{stroke:var(--citrine);stroke-width:2;}
+.region-g{cursor:pointer;}
+.hnum{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;fill:var(--bone);}
+.fname{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.04em;fill:var(--dim);}
+.hplanet{font-family:var(--symbol);font-size:22px;font-weight:400;fill:var(--dim);}
+.hdig{font-size:12px;font-weight:600;fill:var(--citrine);}
+.hpof{font-family:var(--symbol);font-size:13px;fill:var(--citrine);}
+.scell{fill-opacity:var(--tint);}
+.stag{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;fill:var(--dim);}
+.sname{font-family:'Spectral',Georgia,serif;font-size:12.5px;font-weight:600;fill:var(--bone);}
+.shouse{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.04em;fill:var(--dim);}
+.hsign{font-family:var(--symbol);font-size:20px;fill:var(--dim);}
+.notice{margin:14px 0 0;padding:11px 13px;border:1px solid var(--rule);border-left:3px solid var(--citrine);
+  border-radius:2px;background:var(--panel);color:var(--dim);font-size:13px;line-height:1.5;}
+.notice p{margin:0 0 5px;}
+.notice p:last-child{margin:0;}
+.rdig{font-size:13.5px;line-height:1.5;margin:11px 0 0;color:var(--dim);}
+.rdig .sym{font-family:var(--symbol);font-size:15px;}
+.rgd{font-size:14px;line-height:1.55;margin:11px 0 0;padding:10px 12px;border-radius:2px;
+  border-left:2px solid var(--citrine);background:rgba(180,163,67,.08);}
+.rgd em{font-style:italic;color:var(--dim);}
+.gdtag{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;
+  color:var(--citrine);margin-right:5px;}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:10px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:.04em;}
+.lg{display:flex;align-items:center;gap:6px;}
+.lg i{width:9px;height:9px;border-radius:1px;display:inline-block;}
+
+.side{display:flex;flex-direction:column;gap:16px;}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);display:block;}
+.verdict,.reading{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:16px;}
+.vhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+.vname{font-size:24px;font-weight:600;}
+.vbody{display:flex;gap:16px;align-items:flex-start;margin-top:12px;}
+.vread{margin:0;font-size:15px;line-height:1.5;}
+.vnat{margin:7px 0 0;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:.04em;}
+.err{color:var(--err);font-size:13px;margin:10px 0 0;}
+.hint.bad{color:var(--err);}
+.linkish{background:none;border:0;padding:0;font:inherit;color:var(--citrine);
+  text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.linkish:focus-visible{outline:2px solid var(--citrine);outline-offset:2px;}
+.cast.bad{border-color:var(--err);}
+.wits{display:flex;flex-direction:column;gap:10px;margin-top:16px;border-top:1px solid var(--rule);padding-top:14px;}
+.fcard{display:flex;gap:12px;align-items:center;}
+.fcard-label{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--dim);}
+.fcard-name{font-size:16px;font-weight:600;margin-top:1px;}
+.fcard-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);}
+.fourth{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px;}
+.fourth-in{display:flex;gap:12px;align-items:center;margin-top:7px;font-size:14px;}
+
+.rhead h2{font-size:21px;margin:4px 0 2px;font-weight:600;}
+.rkeys{margin:0;color:var(--dim);font-size:13px;font-style:italic;}
+.rfig{display:flex;gap:14px;align-items:center;margin:14px 0 0;}
+.rname{font-size:18px;font-weight:600;}
+.rname em{font-style:italic;font-weight:400;color:var(--dim);font-size:14px;margin-left:6px;}
+.rmeta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--dim);letter-spacing:.04em;margin-top:3px;}
+.rread{font-size:15px;line-height:1.55;margin:14px 0 0;}
+.rjoin{font-size:15px;line-height:1.55;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--rule);}
+.asp{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px;}
+.asprow{display:flex;gap:10px;margin-top:7px;font-size:13px;align-items:baseline;}
+.aspk{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;flex:0 0 76px;}
+.reading.empty p{color:var(--dim);font-size:14px;margin:8px 0 0;line-height:1.5;}
+.export{margin-top:24px;border-top:1px solid var(--rule);padding-top:16px;}
+.exphead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px;}
+.expbox{display:block;width:100%;background:var(--panel);border:1px solid var(--rule);
+  color:var(--bone);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11.5px;
+  line-height:1.55;padding:12px;border-radius:2px;resize:vertical;min-height:210px;
+  white-space:pre;overflow-x:auto;}
+.expbox:focus{outline:none;border-color:var(--citrine);}
+body.viewing .head,body.viewing .castbar,body.viewing .draftbar,body.viewing .hint{display:none;}
+body.viewing{padding-top:max(12px,env(safe-area-inset-top));}
+body.viewing .viewbar{margin-top:0;}
+@media (prefers-reduced-motion:reduce){.region{transition:none;}}
+</style>
+</head>
+<body>
+
+<header class="head">
+  <div>
+    <h1>Geomantic judgment</h1>
+    <p class="sub">Enter the sixteen lines, from the head of the first Mother to the feet of the fourth. <button type="button" id="ex" class="linkish">Show example</button></p>
+  </div>
+</header>
+
+<p class="hint" id="hint"></p>
+
+<div class="castbar">
+  <div class="castfield">
+    <input id="cast" class="cast" placeholder="1221,2212,2121,1121" spellcheck="false" inputmode="numeric" aria-label="Cast points">
+    <button id="paste" class="iconbtn" type="button" aria-label="Paste from clipboard" title="Paste">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 4h6v3H9z"/><path d="M9 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H15"/>
+      </svg>
+    </button>
+  </div>
+  <div class="mothers" id="mothers"></div>
+  <div class="count" id="count">0/16</div>
+</div>
+
+<div class="draftbar">
+  <input id="question" class="noteinput" placeholder="Question &mdash; what was asked" spellcheck="false" aria-label="Question">
+  <select id="sigsel" class="sigsel" aria-label="Significator house"></select>
+  <button id="save" class="paste" type="button" disabled>Save</button>
+</div>
+
+<div id="out"></div>
+
+<script>
+/* ── the sixteen figures; pattern reads head → neck → body → feet ── */
+const FIGURES = [
+ {key:"1111",name:"Via",gloss:"The Way",el:"Water",planet:"Moon",sign:"Cancer",nature:"mobile",
+  keys:"movement, change of place, journeys",
+  reading:"Change of place and circumstance. Favourable for anything that must travel or move; unfavourable for what needs to stay put."},
+ {key:"2222",name:"Populus",gloss:"The People",el:"Water",planet:"Moon",sign:"Cancer",nature:"neutral",
+  keys:"a crowd, the general run of things",
+  reading:"Takes the character of whatever surrounds it. Standing alone it means no change, no initiative, and no answer of its own."},
+ {key:"1221",name:"Carcer",gloss:"The Prison",el:"Earth",planet:"Saturn",sign:"Capricorn",nature:"ill",
+  keys:"binding, delay, restriction",
+  reading:"Confinement and delay. Good only where confinement is wanted — security, containment, keeping something in or a secret kept."},
+ {key:"2112",name:"Conjunctio",gloss:"The Conjunction",el:"Earth",planet:"Mercury",sign:"Virgo",nature:"neutral",
+  keys:"meeting, combination, recovery",
+  reading:"Two things brought together, and lost things recovered. Takes on the quality of the figures it joins."},
+ {key:"2211",name:"Fortuna Major",gloss:"The Greater Fortune",el:"Fire",planet:"Sun",sign:"Leo",nature:"very good",
+  keys:"lasting success won by one's own strength",
+  reading:"Great and durable good fortune, gained by the querent's own power rather than given. Slow to arrive, slow to leave."},
+ {key:"1122",name:"Fortuna Minor",gloss:"The Lesser Fortune",el:"Fire",planet:"Sun",sign:"Leo",nature:"good, unstable",
+  keys:"quick success from outside help",
+  reading:"Success that arrives fast and by another's hand. Take it now — it is real, but it will not keep."},
+ {key:"1212",name:"Acquisitio",gloss:"Gain",el:"Fire",planet:"Jupiter",sign:"Sagittarius",nature:"very good",
+  keys:"profit, receiving, things coming in",
+  reading:"What is sought is obtained and stays obtained. Strongly favourable in nearly every question of getting."},
+ {key:"2121",name:"Amissio",gloss:"Loss",el:"Earth",planet:"Venus",sign:"Taurus",nature:"ill",
+  keys:"loss, things going out",
+  reading:"What is held is let go. Favourable only when loss is the aim — shedding an illness, a debt, or an unwanted tie."},
+ {key:"1222",name:"Laetitia",gloss:"Joy",el:"Water",planet:"Jupiter",sign:"Pisces",nature:"good",
+  keys:"joy, health, building upward",
+  reading:"Gladness and health, and things that rise. Favourable for anything that should be built up or lifted."},
+ {key:"2221",name:"Tristitia",gloss:"Sorrow",el:"Air",planet:"Saturn",sign:"Aquarius",nature:"ill",
+  keys:"sorrow, downturn, things fixed in place",
+  reading:"Grief and things sinking. Good only for what should be rooted, buried, or held down."},
+ {key:"2212",name:"Albus",gloss:"White",el:"Air",planet:"Mercury",sign:"Gemini",nature:"good",
+  keys:"clear judgment, peace, wisdom",
+  reading:"Cool and clear-headed. Favourable for counsel, study, and beginnings that need care rather than force."},
+ {key:"2122",name:"Rubeus",gloss:"Red",el:"Water",planet:"Mars",sign:"Scorpio",nature:"very ill",
+  keys:"passion, violence, deceit",
+  reading:"Ill in nearly every question. Favourable only for what is itself destructive, and a warning against acting from heat."},
+ {key:"1121",name:"Puer",gloss:"The Boy",el:"Fire",planet:"Mars",sign:"Aries",nature:"mixed",
+  keys:"rash energy, a young man, conflict",
+  reading:"Force without much thought. Good in contest and in pursuit; poor in almost everything requiring patience."},
+ {key:"1211",name:"Puella",gloss:"The Girl",el:"Air",planet:"Venus",sign:"Libra",nature:"good",
+  keys:"harmony, attraction, a young woman",
+  reading:"Favourable and pleasant, especially in love and in anything won by charm. Sincere in the moment, but changeable."},
+ {key:"2111",name:"Caput Draconis",gloss:"The Dragon's Head",el:"Earth",planet:"North Node",sign:"Virgo",nature:"good",
+  keys:"the threshold entering, beginnings",
+  reading:"A door opening. It takes the nature of the figures around it and increases them, so it magnifies good and ill alike."},
+ {key:"1112",name:"Cauda Draconis",gloss:"The Dragon's Tail",el:"Fire",planet:"South Node",sign:"Sagittarius",nature:"ill",
+  keys:"the threshold departing, endings",
+  reading:"A door closing. Favourable only for concluding, releasing, and getting out of something."}
+];
+const BY_KEY = Object.fromEntries(FIGURES.map(f => [f.key, f]));
+const JUDGEABLE = new Set(["1111","2222","1221","2112","2211","1122","1212","2121"]);
+
+/* Caput Draconis and Cauda Draconis carry no sign in the Agrippa/GD tables.
+   Greer's set — otherwise identical for the other fourteen — gives them Virgo
+   and Sagittarius, corroborated by his house-strength table (Caput strong in
+   the 6th = Virgo's number). Replace here if Regardie's tables differ. */
+const SIGNS = [["Aries","\u2648"],["Taurus","\u2649"],["Gemini","\u264A"],["Cancer","\u264B"],
+  ["Leo","\u264C"],["Virgo","\u264D"],["Libra","\u264E"],["Scorpio","\u264F"],
+  ["Sagittarius","\u2650"],["Capricorn","\u2651"],["Aquarius","\u2652"],["Pisces","\u2653"]];
+const SIGN_ORDER = SIGNS.map(x => x[0]);
+const PLANET_GLYPH = {"Sun":"\u2609","Moon":"\u263D","Mercury":"\u263F","Venus":"\u2640",
+  "Mars":"\u2642","Jupiter":"\u2643","Saturn":"\u2644","North Node":"\u260A","South Node":"\u260B"};
+
+/* The sign of the figure in house I goes on the ascendant; the rest follow in
+   zodiacal order around the houses, as a horoscope is erected. */
+function signRing(houses){
+  const asc = SIGN_ORDER.indexOf(BY_KEY[houses[1]].sign);
+  if (asc < 0) return null;
+  const ring = {};
+  for (let h = 1; h <= 12; h++) ring[h] = SIGNS[(asc + h - 1) % 12];
+  return ring;
+}
+/* Accidental dignity as the Golden Dawn gives it: the houses answer to the signs
+   (first = Aries, twelfth = Pisces) and each figure follows the dignities of its
+   ruling planet. Caput Draconis is strong in the dignities of Jupiter and Venus,
+   Cauda Draconis in those of Saturn and Mars. Triplicity needs sect, so only
+   domicile, exaltation, detriment and fall are marked. */
+const DIGNITY = {
+  Sun:    {dom:[5],    exa:[1],  det:[11],   fal:[7]},
+  Moon:   {dom:[4],    exa:[2],  det:[10],   fal:[8]},
+  Mercury:{dom:[3,6],  exa:[6],  det:[9,12], fal:[12]},
+  Venus:  {dom:[2,7],  exa:[12], det:[8,1],  fal:[6]},
+  Mars:   {dom:[1,8],  exa:[10], det:[7,2],  fal:[4]},
+  Jupiter:{dom:[9,12], exa:[4],  det:[3,6],  fal:[10]},
+  Saturn: {dom:[10,11],exa:[7],  det:[4,5],  fal:[1]}
+};
+const NODE_RULERS = {"North Node":["Jupiter","Venus"], "South Node":["Saturn","Mars"]};
+const DIG_MARK = {domicile:"+", exaltation:"\u2191", detriment:"\u2212", fall:"\u2193"};
+const DIG_WORD = {
+  domicile:"in its own house \u2014 strongest",
+  exaltation:"in its exaltation \u2014 very strong",
+  detriment:"in its detriment \u2014 weakest of all",
+  fall:"in its fall \u2014 very weak"
+};
+function dignityOf(f, h){
+  const rulers = NODE_RULERS[f.planet] || [f.planet];
+  let exalted = "";
+  for (const r of rulers){
+    const d = DIGNITY[r]; if (!d) continue;
+    if (d.dom.indexOf(h) > -1) return "domicile";
+    if (d.exa.indexOf(h) > -1) exalted = "exaltation";
+  }
+  if (NODE_RULERS[f.planet]) return exalted;   /* the nodes are only noted as strong */
+  for (const r of rulers){
+    const d = DIGNITY[r]; if (!d) continue;
+    if (d.det.indexOf(h) > -1) return "detriment";
+    if (d.fal.indexOf(h) > -1) return "fall";
+  }
+  return exalted;
+}
+const dignity = (f, h) => DIG_MARK[dignityOf(f, h)] || "";
+
+/* Part of Fortune: add the points of the first twelve figures, divide by twelve,
+   and it falls with the figure answering to the remainder; no remainder, the twelfth. */
+const SHIELD_ORDER = ["M1","M2","M3","M4","D1","D2","D3","D4","N1","N2","N3","N4"];
+/* Part of Fortune: the points of the twelve figures set in the houses, divided
+   by twelve; the remainder is the house it falls in, and nothing over is the
+   twelfth. The total runs 48 to 96, four to eight points a figure. */
+function partOfFortune(sh, map){
+  let total = 0;
+  SHIELD_ORDER.forEach(k => { for (const ch of sh[k]) total += +ch; });
+  const house = (total % 12) || 12;
+  return {house:house, code:map[house], total:total};
+}
+function firstHouseNotes(houses){
+  const n = [], one = BY_KEY[houses[1]].name;
+  if (one === "Rubeus") n.push("Rubeus in the first \u2014 traditionally, the querent is not dealing straight with the diviner.");
+  if (one === "Cauda Draconis") n.push("Cauda Draconis in the first \u2014 traditionally, the querent has already decided and will not hear otherwise.");
+  if (n.length) n.push("The Golden Dawn forfeits such a chart and recasts after two hours; Greer advises raising it rather than stopping.");
+  if (one === "Populus" && BY_KEY[houses[11]].name === "Rubeus")
+    n.push("Populus in the first with Rubeus in the eleventh \u2014 traditionally a made-up question meant to test the diviner.");
+  return n;
+}
+
+/* The Golden Dawn's own tables: each figure's general signification and its
+   effect in each of the twelve houses. From Mathers' geomancy paper for the
+   Order, the text reprinted in Regardie's The Golden Dawn. */
+const GD = {"Acquisitio": ["Generally good, for profit and gain.","Happy, success in all things.","Very prosperous.","Favour and riches.","Good fortune and success.","Good success.","Good, especially if it agrees with the 5th.","Reasonably good.","Rather good, but not very. The sick shall die.","Good in all demands.","Good in suits. Very prosperous.","Good in all.","Evil, pain and loss."],"Amissio": ["Good for loss of substance and sometimes for love, but very bad for gain.","Ill in all things but for prisoners.","Very ill for money, but good for love.","Ill end, except for quarrels.","Ill in all.","Evil except for agriculture.","Rather evil for love.","Very good for love, otherwise evil.","Excellent in all questions.","Evil in all things.","Evil except for favour with women.","Good for love, otherwise bad.","Evil in all things."],"Fortuna Major": ["Good for gain in all things where a person has hopes to win.","Good save in secrecy.","Good except in sad things.","Good in all.","Good in all, but melancholy.","Very good in all things.","Very good except for debauchery.","Good in all.","Moderately good.","Very good.","Exceedingly good. Go to superiors.","Very good.","Good in all."],"Fortuna Minor": ["Good in any matter in which a person wishes to proceed quickly.","Speed in victory and in love, but choleric.","Very good.","Good, but wrathful.","Haste; rather evil except for peace.","Good in all things.","Medium in all.","Evil except for war or love.","Evil generally.","Good, but choleric.","Good, except for peace.","Good, especially for love.","Good, except for alteration, or for suing another."],"Laetitia": ["Good for joy, present or to come.","Good, except in war.","Sickly.","Ill.","Mainly good.","Excellent.","Evil generally.","Indifferent.","Evil generally.","Very good.","Good, rather in war than in peace.","Good in all.","Evil generally."],"Tristitia": ["Evil in almost all things.","Medium, but good for treasure and fortifying.","Medium, but good to fortify.","Evil in all.","Evil in all.","Very evil.","Evil, except for debauchery.","Evil for inheritance and magic only.","Evil, but in secrecy good.","Evil except for magic.","Evil except for fortifications.","Evil in all.","Evil, but good for magic and treasure."],"Puella": ["Good in all demands, especially those relating to women.","Good except in war.","Very good.","Good.","Indifferent.","Very good, but notice the aspects.","Good, but especially so for debauchery.","Good except for war.","Good.","Good for music. Otherwise only medium.","Good for peace.","Good, and love of ladies.","Good in all."],"Puer": ["Evil in most demands, except those relating to war or love.","Indifferent. Best in war.","Good, but with trouble.","Good fortune.","Evil, except in war and love.","Medium good.","Medium.","Evil, save in war.","Evil, save for love.","Evil except for war.","Rather evil. But good for love and war.","Most other things medium.","Medium; good favour."],"Rubeus": ["Evil in all that is good, and good in all that is evil.","Destroy the figure if it falls here — it makes the judgment worthless.","Evil in all demands.","Evil except to let blood.","Evil except in war and fire.","Evil save for love, and sowing seed.","Evil except for blood-letting.","Evil except for war and fire.","Evil.","Very evil.","Dissolute. Love, fire.","Evil, except to let blood.","Evil in all things."],"Albus": ["Good for profit and for entering into a place or undertaking.","Good for marriage. Mercurial. Peace.","Good in all.","Very good.","Very good except in war.","Good.","Good in all things.","Good except for war.","Good.","A messenger brings a letter.","Excellent in all.","Very good.","Marvellously good."],"Conjunctio": ["Good with good, or evil with evil. Recovery of things lost.","Good with good, evil with evil.","Commonly good.","Good fortune.","Good save for health; see the 8th.","Medium.","Good for immorality only.","Rather good.","Evil; death.","Medium good.","For love, good. For sickness, evil.","Good in all.","Medium. Bad for prisoners."],"Carcer": ["Generally evil. Delay, binding, bar, restriction.","Evil except to fortify a place.","Good in Saturnine questions; else evil.","Evil.","Good only for melancholy.","Receive a letter within three days. Evil.","Very evil.","Evil.","Very evil.","Evil in all.","Evil save for hidden treasure.","Much anxiety.","Rather good."],"Caput Draconis": ["Good with good, evil with evil. Gives a good issue for gain.","Good in all things.","Good.","Very good.","Good save in war.","Very good.","Good for immorality only.","Good especially for peace.","Good.","Very good.","Good in all.","Good for the church and ecclesiastical gain.","Not very good."],"Cauda Draconis": ["Good with evil, and evil with good. Good for loss, and for passing out of an affair.","Destroy the figure if it falls here — it makes the judgment worthless.","Very evil.","Evil in all.","Good especially for conclusion of the matter.","Very evil.","Rather good.","Evil, war, and fire.","No good, except for magic.","Good for science only. Bad for journeys. Robbery.","Evil save in works of fire.","Evil save for favours.","Rather good."],"Via": ["Injurious to the goodness of other figures generally, but good for journeys and voyages.","Evil except for prison.","Indifferent.","Very good in all.","Good in all save love.","Voyages good.","Evil.","Rather good, especially for voyages.","Evil.","Indifferent. Good for journeys.","Good.","Very good.","Excellent."],"Populus": ["Sometimes good and sometimes bad; good with good, and evil with evil.","Good for marriage.","Medium good.","Rather good than bad.","Good in all but love.","Good in most things.","Good.","In war good; else medium.","Evil.","Look for letters.","Good.","Good in all.","Very evil."]};
+
+const HOUSES = {
+ 1:{title:"The querent",keys:"the body, the life, the person asking"},
+ 2:{title:"Resources",keys:"money, movable goods, what is held"},
+ 3:{title:"Kin and messages",keys:"siblings, neighbours, short journeys, news"},
+ 4:{title:"Foundations",keys:"father, land, property, the end of the matter"},
+ 5:{title:"Issue",keys:"children, pleasure, creation, speculation"},
+ 6:{title:"Affliction",keys:"illness, work, servants, small animals"},
+ 7:{title:"The other",keys:"partner, marriage, the opponent, open enemies"},
+ 8:{title:"Death and another's goods",keys:"inheritance, fear, the partner's money"},
+ 9:{title:"The far",keys:"long journeys, religion, learning, divination"},
+ 10:{title:"Standing",keys:"career, honour, rulers, reputation"},
+ 11:{title:"Allies",keys:"friends, hopes, wishes, support"},
+ 12:{title:"The hidden",keys:"secret enemies, confinement, self-undoing"}
+};
+
+/* Malkuth's four colours — the Zelator scale — standing for the elements:
+   Fire russet, Air citrine, Water olive, Earth black. */
+const EL = {
+  Fire:{c:"var(--el-fire)"},  Air:{c:"var(--el-air)"},
+  Water:{c:"var(--el-water)"}, Earth:{c:"var(--el-earth)"}
+};
+
+/* Golden Dawn allotment, Zelator 1=10. The first Mother goes to House X —
+   Cardinal Earth, naturally ruled by Capricorn — and the figures run
+   counterclockwise: Mothers to the angles, Daughters to the succedents,
+   Nieces to the cadents. To use a different method, swap this map. */
+const ALLOTMENT = {
+  map:{10:"M1",1:"M2",4:"M3",7:"M4",11:"D1",2:"D2",5:"D3",8:"D4",12:"N1",3:"N2",6:"N3",9:"N4"}
+};
+
+/* Each region's stack — number, figure, name — is centred on the region's
+   incentre, so it sits in the middle of the space actually available. */
+const REGIONS = {
+ 1:{poly:[[0,.5],[.25,.25],[.5,.5],[.25,.75]],glyph:[.2500,.5000],num:[.450,.509]},
+ 10:{poly:[[.5,0],[.75,.25],[.5,.5],[.25,.25]],glyph:[.5000,.2500],num:[.500,.459]},
+ 7:{poly:[[1,.5],[.75,.75],[.5,.5],[.75,.25]],glyph:[.7500,.5000],num:[.550,.509]},
+ 4:{poly:[[.5,1],[.25,.75],[.5,.5],[.75,.75]],glyph:[.5000,.7500],num:[.500,.559]},
+ 11:{poly:[[0,0],[.5,0],[.25,.25]],glyph:[.2500,.0964],num:[.250,.214]},
+ 12:{poly:[[0,0],[.25,.25],[0,.5]],glyph:[.0964,.2500],num:[.205,.259]},
+ 9:{poly:[[.5,0],[1,0],[.75,.25]],glyph:[.7500,.0964],num:[.750,.214]},
+ 8:{poly:[[1,0],[1,.5],[.75,.25]],glyph:[.9036,.2500],num:[.795,.259]},
+ 6:{poly:[[1,.5],[1,1],[.75,.75]],glyph:[.9036,.7500],num:[.795,.759]},
+ 5:{poly:[[1,1],[.5,1],[.75,.75]],glyph:[.7500,.9036],num:[.750,.804]},
+ 3:{poly:[[.5,1],[0,1],[.25,.75]],glyph:[.2500,.9036],num:[.250,.804]},
+ 2:{poly:[[0,1],[0,.5],[.25,.75]],glyph:[.0964,.7500],num:[.205,.759]}
+};
+const ASPECT_TONE = {Trine:"var(--el-air)",Sextile:"var(--el-water)",Square:"var(--el-fire)",Opposition:"var(--err)"};
+
+/* ── derivation ── */
+const addFig = (a,b) => {
+  let o = "";
+  for (let i=0;i<4;i++) o += ((+a[i] + +b[i]) % 2 === 1) ? "1" : "2";
+  return o;
+};
+function deriveShield(p){
+  const M = [0,1,2,3].map(i => p.slice(i*4, i*4+4).join(""));
+  const D = [0,1,2,3].map(r => M.map(m => m[r]).join(""));
+  const N = [addFig(M[0],M[1]), addFig(M[2],M[3]), addFig(D[0],D[1]), addFig(D[2],D[3])];
+  const RW = addFig(N[0],N[1]), LW = addFig(N[2],N[3]), J = addFig(RW,LW);
+  return {M1:M[0],M2:M[1],M3:M[2],M4:M[3],D1:D[0],D2:D[1],D3:D[2],D4:D[3],
+          N1:N[0],N2:N[1],N3:N[2],N4:N[3],RW,LW,Judge:J,Reconciler:addFig(J,M[0])};
+}
+const norm = h => ((h-1+1200) % 12) + 1;
+const aspectsOf = h => ({
+  Trine:[norm(h+4),norm(h-4)], Square:[norm(h+3),norm(h-3)],
+  Sextile:[norm(h+2),norm(h-2)], Opposition:[norm(h+6)]
+});
+function ord(n){ const s=["th","st","nd","rd"], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
+function sameFigureHouses(houses,h){
+  return Object.keys(houses).map(Number).filter(k => k!==h && houses[k]===houses[h]).sort((a,b)=>a-b);
+}
+function glyph(fig, size, color){
+  size = size || 1; color = color || "currentColor";
+  const w = 26*size, rowH = 8*size, r = 1.9*size, gap = 5.5*size;
+  let inner = "";
+  for (let i=0;i<4;i++){
+    const cy = rowH*i + rowH/2;
+    inner += fig[i] === "1"
+      ? '<circle cx="'+(w/2)+'" cy="'+cy+'" r="'+r+'" style="fill:'+color+'"/>'
+      : '<circle cx="'+(w/2-gap)+'" cy="'+cy+'" r="'+r+'" style="fill:'+color+'"/><circle cx="'+(w/2+gap)+'" cy="'+cy+'" r="'+r+'" style="fill:'+color+'"/>';
+  }
+  return '<svg width="'+w+'" height="'+(rowH*4)+'" viewBox="0 0 '+w+' '+(rowH*4)+'" aria-hidden="true">'+inner+'</svg>';
+}
+const tinted = (fig,size) => '<span style="color:'+EL[BY_KEY[fig].el].c+'">'+glyph(fig,size)+'</span>';
+
+/* ── state ── */
+let state = { raw:"", question:"", sig:0, viewing:false,
+              selected:null, view:"square", currentId:null, pendingDel:null, editingId:null };
+try { const v = localStorage.getItem("geomancy-view");
+      if (v === "shield" || v === "wheel" || v === "square") state.view = v; }
+catch (e) { /* storage unavailable; the default stands */ }
+const $ = id => document.getElementById(id);
+const STORE = "geomancy-casts";
+
+function loadCasts(){ try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch (e) { return []; } }
+function saveCasts(l){ try { localStorage.setItem(STORE, JSON.stringify(l)); } catch (e) {} }
+function rememberCast(pts, note, sig){
+  const l = loadCasts();
+  for (const c of l) if (c.pts === pts){ c.note = note; c.sig = sig; c.ts = Date.now(); saveCasts(l); return c.id; }
+  const entry = { id:String(Date.now())+Math.floor(Math.random()*1000), pts:pts, ts:Date.now(), note:note||"", sig:sig||0 };
+  l.unshift(entry); saveCasts(l.slice(0,200));
+  return entry.id;
+}
+const getCast = id => loadCasts().filter(c => c.id === id)[0] || null;
+function updateCast(id, patch){
+  const l = loadCasts();
+  for (const c of l) if (c.id === id) { for (const k in patch) c[k] = patch[k]; saveCasts(l); return; }
+}
+const deleteCast = id => saveCasts(loadCasts().filter(c => c.id !== id));
+
+/* significator options, built per row so the list can be edited in place */
+function sigOptions(sel){
+  return '<option value="0">Significator \u2014 none</option>'
+    + [1,2,3,4,5,6,7,8,9,10,11,12].map(h =>
+        '<option value="'+h+'"'+(+sel===h?" selected":"")+'>House '+h+' \u00b7 '+HOUSES[h].title+'</option>').join("");
+}
+
+function savedListHTML(){
+  const l = loadCasts();
+  if (!l.length) return "";
+  return '<section class="saved"><span class="eyebrow">Saved casts</span><ul class="savedlist">'
+    + l.map(c => {
+        const sh = deriveShield(c.pts.split(""));
+        const when = new Date(c.ts).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"});
+        const meta = when + "  \u00b7  Judge " + BY_KEY[sh.Judge].name
+          + (c.sig ? "  \u00b7  significator house " + c.sig : "");
+        const editing = state.editingId === c.id;
+        return '<li class="crow'+(editing?" editing":"")+'">'
+          + '<div class="cbody" data-open="'+c.id+'">'
+          + '<div class="cfig">'+tinted(sh.Judge,0.8)+'</div><div class="ctext">'
+          + '<div class="cnote'+(c.note?"":" none")+'">'+esc(c.note || "No question recorded")+'</div>'
+          + '<div class="cmeta">'+esc(meta)+'</div></div></div>'
+          + '<button class="cbtn'+(editing?" on":"")+'" data-edit="'+c.id+'">'
+          + (editing ? "Done" : "Edit") + '</button>'
+          + '<button class="cdel'+(state.pendingDel===c.id?" arm":"")+'" data-del="'+c.id+'">'
+          + (state.pendingDel===c.id ? "Delete?" : "\u00d7") + '</button>'
+          + (editing ? '<div class="cedit">'
+              + '<input class="noteinput" data-note="'+c.id+'" value="'+escA(c.note||"")+'" '
+              + 'placeholder="Question \u2014 what was asked" spellcheck="false" aria-label="Question">'
+              + '<select class="sigsel" data-sig="'+c.id+'" aria-label="Significator house">'
+              + sigOptions(c.sig||0) + '</select></div>' : "")
+          + '</li>';
+      }).join("")
+    + '</ul></section>';
+}
+
+const SEP = /[\s,;:.\-\u2013\u2014_/\\|()\[\]]/;
+function parseCast(raw){
+  const pts = [], bad = [];
+  for (const ch of raw){
+    if (ch === "1" || ch === "2") pts.push(ch);
+    else if (SEP.test(ch)) continue;
+    else if (!bad.includes(ch)) bad.push(ch);
+  }
+  let error = null;
+  if (bad.length) error = "Only 1 and 2 are points. Remove " + bad.map(c => "\u201c"+c+"\u201d").join(", ") + ".";
+  else if (pts.length > 16) error = pts.length + " points entered. A cast has 16 \u2014 remove " + (pts.length-16) + ".";
+  return { pts, error };
+}
+
+const RING_POS = {12:[-30,146],1:[-30,286],2:[-30,426],11:[140,-22],10:[280,-22],9:[420,-22],
+  8:[590,146],7:[590,286],6:[590,426],3:[140,594],4:[280,594],5:[420,594]};
+
+function chartSVG(houses){
+  const S = 560, P = (u,v) => [u*S, v*S], ring = signRing(houses);
+  const cen = h => P(REGIONS[h].glyph[0], REGIONS[h].glyph[1]);
+  let s = '<svg viewBox="-52 -50 '+(S+104)+' '+(S+100)+'" class="chart" role="img" aria-label="Geomantic house chart">';
+
+  for (const h in REGIONS){
+    const f = BY_KEY[houses[h]];
+    const sel = state.selected === +h;
+    s += '<polygon class="region'+(sel?" sel":"")+(houses.sig===+h?" sig":"")+'" data-h="'+h+'" points="'
+       + REGIONS[h].poly.map(p => P(p[0],p[1]).join(",")).join(" ")
+       + '" style="fill:'+EL[f.el].c+'"/>';
+  }
+  if (state.selected){
+    const A = aspectsOf(state.selected);
+    for (const kind in A) A[kind].forEach(t => {
+      const a = cen(state.selected), b = cen(t);
+      const dash = kind==="Opposition" ? "none" : kind==="Square" ? "5 4" : "2 5";
+      s += '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="'+ASPECT_TONE[kind]
+         + '" stroke-width="1.4" stroke-opacity="0.8" stroke-dasharray="'+dash+'"/>';
+    });
+  }
+  s += '<rect x="0" y="0" width="'+S+'" height="'+S+'" fill="none" stroke="var(--rule)" stroke-width="2"/>';
+  [[[0,0],[1,1]],[[1,0],[0,1]],[[.5,0],[1,.5]],[[1,.5],[.5,1]],[[.5,1],[0,.5]],[[0,.5],[.5,0]]].forEach(seg => {
+    const a = P(seg[0][0],seg[0][1]), b = P(seg[1][0],seg[1][1]);
+    s += '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="var(--rule)" stroke-width="1.2"/>';
+  });
+  for (const h in REGIONS){
+    const f = BY_KEY[houses[h]], g = cen(h), d = dignity(f, +h);
+    const n = P(REGIONS[h].num[0], REGIONS[h].num[1]);
+    const nameDy = (h === "11" || h === "9") ? -32 : 38;
+    const marks = (d || "") + (houses.pof === +h ? " \u2297" : "");
+    s += '<g class="region-g" data-h="'+h+'">'
+       + '<text x="'+n[0]+'" y="'+n[1]+'" text-anchor="middle" class="hnum">'+h+'</text>'
+       + '<g transform="translate('+(g[0]-32.8)+','+(g[1]-25.6)+')" style="color:'+EL[f.el].c+'">'+glyph(f.key,1.6)+'</g>'
+       + '<text x="'+(g[0]+29)+'" y="'+(g[1]+1)+'" text-anchor="middle" class="hplanet">'+(PLANET_GLYPH[f.planet]||"")+'</text>'
+       + (marks ? '<text x="'+(g[0]+29)+'" y="'+(g[1]+19)+'" text-anchor="middle" class="hdig">'+marks+'</text>' : '')
+       + '<text x="'+g[0]+'" y="'+(g[1]+nameDy)+'" text-anchor="middle" class="fname">'+f.name+'</text></g>';
+  }
+  if (ring) for (const h in RING_POS)
+    s += '<text x="'+RING_POS[h][0]+'" y="'+RING_POS[h][1]+'" text-anchor="middle" class="hsign">'+ring[h][1]+'</text>';
+  return s + '</svg>';
+}
+
+/* ── the shield: the sixteen figures as they are raised, read right to left,
+   mothers first, each pair folding into the figure below it ── */
+const SHIELD_HOUSE = {};
+for (const h in ALLOTMENT.map) SHIELD_HOUSE[ALLOTMENT.map[h]] = +h;
+const SHIELD_TAG = {M1:"Mother 1",M2:"Mother 2",M3:"Mother 3",M4:"Mother 4",
+  D1:"Daughter 1",D2:"Daughter 2",D3:"Daughter 3",D4:"Daughter 4",
+  N1:"Niece 1",N2:"Niece 2",N3:"Niece 3",N4:"Niece 4",
+  RW:"Right witness",LW:"Left witness",Judge:"Judge",Reconciler:"Reconciler \u00b7 Judge + Mother 1"};
+
+function shieldSVG(sh, houses){
+  const CW = 104, RH = 132, WIDE = CW*8;          /* eight columns of mothers and daughters */
+  const yBase = RH*2, SIDE = 140, DEEP = 110;     /* the shield's straight flanks, then its swell */
+  const GAP = 26;
+
+  /* The base's bottom is one cubic. Its first control point stands directly
+     below the left flank and its second below the right, so the curve leaves
+     each flank travelling straight down and the swell turns without a corner;
+     DEEP is the depth at the middle, which for a cubic is three quarters of
+     the control arm. Sub-arcs of the same curve close the three wedges. */
+  const P0 = [0, yBase+SIDE], P3 = [WIDE, yBase+SIDE], ARM = DEEP*4/3;
+  const C1 = [0, yBase+SIDE+ARM], C2 = [WIDE, yBase+SIDE+ARM];
+  const at = (t,i) => { const u = 1-t;
+    return u*u*u*P0[i] + 3*u*u*t*C1[i] + 3*u*t*t*C2[i] + t*t*t*P3[i]; };
+  const slope = (t,i) => { const u = 1-t;
+    return 3*u*u*(C1[i]-P0[i]) + 6*u*t*(C2[i]-C1[i]) + 3*t*t*(P3[i]-C2[i]); };
+  const pt = (f,t) => [+f(t,0).toFixed(2), +f(t,1).toFixed(2)];
+  const qPt = t => pt(at, t);
+  /* the stretch between two parameters, lifted out as a cubic of its own:
+     the ends are points on the curve, the handles a third of its tangent */
+  const arc = (a,b) => {
+    const h = (t,k) => [0,1].map(i => +(at(t,i) + k*(b-a)/3*slope(t,i)).toFixed(2));
+    return "C" + h(a,1) + " " + h(b,-1) + " " + qPt(b);
+  };
+  const apex = [WIDE/2, yBase], tL = 0.30, tR = 0.70;
+
+  let fills = "", edges = "", marks = "";
+  const face = (key, shape, cx, yTag, cls) => {
+    const f = BY_KEY[sh[key]], h = SHIELD_HOUSE[key] || 0;
+    const hit = h ? ' data-h="'+h+'"' : "";
+    fills += shape('class="'+(h ? "region" : "scell")+(h && state.selected===h ? " sel" : "")
+          + (h && houses.sig===h ? " sig" : "")+'"'+hit, 'style="fill:'+EL[f.el].c+'"');
+    edges += shape('fill="none" stroke="var(--rule)" stroke-width="1.2" pointer-events="none"', "");
+    marks += '<g class="region-g"'+hit+'>'
+          + '<text x="'+cx+'" y="'+yTag+'" text-anchor="middle" class="stag">'+SHIELD_TAG[key]+'</text>'
+          + '<g transform="translate('+(cx-19.5)+','+(yTag+12)+')" style="color:'+EL[f.el].c+'">'
+          + glyph(f.key,1.5)+'</g>'
+          + '<text x="'+cx+'" y="'+(yTag+92)+'" text-anchor="middle" class="sname">'+f.name+'</text>'
+          + (h ? '<text x="'+cx+'" y="'+(yTag+108)+'" text-anchor="middle" class="shouse">house '+h+'</text>' : "")
+          + '</g>';
+  };
+  const box = (x,y,w,h,rx) => (a,b) =>
+    '<rect '+a+' x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'"'+(rx?' rx="'+rx+'"':"")+' '+b+'/>';
+  const wedge = d => (a,b) => '<path '+a+' d="'+d+'" '+b+'/>';
+
+  /* mothers at the right, daughters to their left; each pair folds into the niece below */
+  [{y:0, w:CW, keys:["D4","D3","D2","D1","M4","M3","M2","M1"]},
+   {y:RH, w:CW*2, keys:["N4","N3","N2","N1"]}].forEach(r =>
+    r.keys.forEach((k,i) => face(k, box(i*r.w, r.y, r.w, RH), i*r.w + r.w/2, r.y+20)));
+
+  face("LW", wedge("M"+apex+" L0,"+yBase+" L"+P0+" "+arc(0,tL)+" L"+apex+" Z"),
+       WIDE*0.192, yBase+70);
+  face("Judge", wedge("M"+apex+" L"+qPt(tL)+" "+arc(tL,tR)+" L"+apex+" Z"),
+       WIDE/2, yBase+120);
+  face("RW", wedge("M"+apex+" L"+qPt(tR)+" "+arc(tR,1)+" L"+WIDE+","+yBase+" Z"),
+       WIDE*0.808, yBase+70);
+
+  const yRec = yBase + SIDE + DEEP + GAP;
+  face("Reconciler", box((WIDE-CW*3)/2, yRec, CW*3, RH, 12), WIDE/2, yRec+20);
+
+  return '<svg viewBox="-8 -8 '+(WIDE+16)+' '+(yRec+RH+16)+'" class="chart" role="img" '
+       + 'aria-label="Geomantic shield">'+fills+edges+marks+'</svg>';
+}
+
+/* Circular wheel: ascendant due west, houses counterclockwise, 30 degrees each. */
+const W = {cx:310, cy:310, rOut:300, rSign:262, rSignG:281, rName:224, rFig:168, rNum:124, rHub:95};
+const pol = (r,a) => [ (W.cx + r*Math.cos(a*Math.PI/180)).toFixed(2),
+                       (W.cy - r*Math.sin(a*Math.PI/180)).toFixed(2) ];
+const houseStart = h => 180 + 30*(h-1);
+const houseMid   = h => 195 + 30*(h-1);
+function annulus(r1,r2,a1,a2){
+  return "M"+pol(r2,a1)+"A"+r2+" "+r2+" 0 0 0 "+pol(r2,a2)
+       + "L"+pol(r1,a2)+"A"+r1+" "+r1+" 0 0 1 "+pol(r1,a1)+"Z";
+}
+
+function wheelSVG(houses){
+  const ring = signRing(houses);
+  let s = '<svg viewBox="0 0 620 620" class="chart" role="img" aria-label="Geomantic house wheel">';
+
+  for (let h = 1; h <= 12; h++){
+    const f = BY_KEY[houses[h]], a = houseStart(h);
+    s += '<path class="region'+(state.selected===h?" sel":"")+(houses.sig===h?" sig":"")+'" data-h="'+h+'" d="'
+       + annulus(W.rHub, W.rSign, a, a+30) + '" style="fill:'+EL[f.el].c+'"/>';
+  }
+  if (state.selected){
+    const A = aspectsOf(state.selected);
+    for (const kind in A) A[kind].forEach(t => {
+      const p1 = pol(W.rFig, houseMid(state.selected)), p2 = pol(W.rFig, houseMid(t));
+      const dash = kind==="Opposition" ? "none" : kind==="Square" ? "5 4" : "2 5";
+      s += '<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="'+ASPECT_TONE[kind]
+         + '" stroke-width="1.4" stroke-opacity="0.8" stroke-dasharray="'+dash+'"/>';
+    });
+  }
+  [W.rOut, W.rSign, W.rHub].forEach((r,i) =>
+    s += '<circle cx="'+W.cx+'" cy="'+W.cy+'" r="'+r+'" fill="none" stroke="var(--rule)" stroke-width="'+(i?1.2:2)+'"/>');
+  for (let h = 1; h <= 12; h++){
+    const a = houseStart(h), ang = (h-1) % 3 === 0;   /* cusps of the angles drawn heavier */
+    s += '<line x1="'+pol(W.rHub,a)[0]+'" y1="'+pol(W.rHub,a)[1]+'" x2="'+pol(W.rOut,a)[0]+'" y2="'
+       + pol(W.rOut,a)[1]+'" stroke="var(--rule)" stroke-width="'+(ang?2:1)+'"/>';
+  }
+  for (let h = 1; h <= 12; h++){
+    const f = BY_KEY[houses[h]], m = houseMid(h), d = dignity(f,h);
+    const gp = pol(W.rFig, m), np = pol(W.rName, m), hp = pol(W.rHub+18, houseMid(h));
+    if (ring){ const sp = pol(W.rSignG, m);
+      s += '<text x="'+sp[0]+'" y="'+(+sp[1]+7)+'" text-anchor="middle" class="hsign">'+ring[h][1]+'</text>'; }
+    s += '<g class="region-g" data-h="'+h+'">'
+       + '<text x="'+np[0]+'" y="'+np[1]+'" text-anchor="middle" class="wname">'+f.name+'</text>'
+       + '<g transform="translate('+(gp[0]-32.8)+','+(+gp[1]-25.6)+')" style="color:'+EL[f.el].c+'">'+glyph(f.key,1.6)+'</g>'
+       + '<text x="'+(+gp[0]+29)+'" y="'+(+gp[1]+8)+'" text-anchor="middle" class="hplanet">'+(PLANET_GLYPH[f.planet]||"")+'</text>'
+       + '<text x="'+hp[0]+'" y="'+(+hp[1]+5)+'" text-anchor="middle" class="hnum">' + h
+       + (d ? '<tspan class="hdig" dx="4">'+d+'</tspan>' : '')
+       + (houses.pof === h ? '<tspan class="hpof" dx="4">\u2297</tspan>' : '') + '</text></g>';
+  }
+  const J = BY_KEY[houses.judgeKey];
+  s += '<text x="'+W.cx+'" y="'+(W.cy-46)+'" text-anchor="middle" class="hubcap">JUDGE</text>'
+     + '<g transform="translate('+(W.cx-24.7)+','+(W.cy-30.4)+')" style="color:'+EL[J.el].c+'">'+glyph(J.key,1.9)+'</g>'
+     + '<text x="'+W.cx+'" y="'+(W.cy+52)+'" text-anchor="middle" class="hubname">'+J.name+'</text>';
+  return s + '</svg>';
+}
+
+const esc = t => t.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const escA = t => esc(t).replace(/"/g, "&quot;");
+const pad = (t,n) => (t + "                        ").slice(0,n);
+
+function exportText(sh, houses, tally){
+  const pofx = partOfFortune(sh, ALLOTMENT.map);
+  const F = k => BY_KEY[k];
+  const row = (lab,k) => "  " + pad(lab,16) + pad(F(k).name,16) + k;
+  const L = [];
+  L.push("GEOMANTIC CHART");
+  L.push("Cast: " + [sh.M1, sh.M2, sh.M3, sh.M4].join(","));
+  if (state.question) L.push("Question: " + state.question);
+  if (state.sig) L.push("Significator: house " + state.sig + " — " + HOUSES[state.sig].title);
+  L.push("Notation: each figure is four rows head to feet; 1 = single point, 2 = double point.");
+  L.push("");
+  L.push("SHIELD");
+  ["M1","M2","M3","M4"].forEach((k,i) => L.push(row("Mother "+(i+1), sh[k])));
+  ["D1","D2","D3","D4"].forEach((k,i) => L.push(row("Daughter "+(i+1), sh[k])));
+  ["N1","N2","N3","N4"].forEach((k,i) => L.push(row("Niece "+(i+1), sh[k])));
+  L.push(row("Right witness", sh.RW));
+  L.push(row("Left witness", sh.LW));
+  L.push(row("Judge", sh.Judge));
+  L.push(row("Reconciler", addFig(sh.Judge, houses[1])) + "   (Judge + house 1; GD forms it from the house of the thing demanded)");
+  L.push("");
+  const ring = signRing(houses);
+  L.push("HOUSES  (Golden Dawn allotment: Mothers angular, Daughters succedent,");
+  L.push("         Nieces cadent, counterclockwise from the tenth)");
+  if (ring) L.push("Ascendant: " + ring[1][0] + ", taken from the sign of the figure in house 1; the rest follow in order.");
+  L.push("Dignity here is accidental: it is taken from the house a figure falls in,");
+  L.push("the houses answering to the signs in order, and judged by the figure's ruling planet. "
+    + "[dom] own house, [exa] exaltation, [det] detriment, [fal] fall.");
+  for (let h = 1; h <= 12; h++){
+    const f = F(houses[h]), m = HOUSES[h];
+    L.push("  " + pad(String(h),4) + pad(ALLOTMENT.map[h],4) + pad(f.name,16)
+      + pad(ring ? ring[h][0] : "-",13) + pad("("+f.el+", "+f.planet+"; "+f.nature+")",34)
+      + pad(dignityOf(f,h) ? "[" + dignityOf(f,h).slice(0,3) + "]" : "",6) + m.title + " — " + m.keys);
+  }
+  L.push("");
+  L.push("ELEMENTS  " + Object.keys(tally).map(e => e+" "+tally[e]).join("  ·  "));
+  L.push("END OF MATTER (4th house)  " + F(houses[4]).name);
+  L.push("PART OF FORTUNE  house " + pofx.house + " (" + pofx.code + "), from "
+    + pofx.total + " points over the twelve figures");
+  firstHouseNotes(houses).forEach(t => L.push("NOTE  " + t));
+  return L.join("\n");
+}
+
+function render(){
+  const parsed = parseCast(state.raw), p = parsed.pts, ready = !parsed.error && p.length === 16;
+
+  /* mothers strip + counter */
+  let ms = "";
+  for (let i=0;i<4;i++){
+    const m = parsed.error ? "" : p.slice(i*4, i*4+4).join("");
+    ms += '<div class="mslot"><span class="mlabel">M'+(i+1)+'</span>'
+        + (m.length===4 ? tinted(m,0.9) : '<div class="mempty"></div>') + '</div>';
+  }
+  $("mothers").innerHTML = ms;
+  $("count").textContent = ready ? "" : (parsed.error ? "\u2014" : p.length) + "/16";
+
+  $("hint").innerHTML = parsed.error ? esc(parsed.error)
+    : (p.length === 0 || ready
+        ? "1 for a single point, 2 for a double point."
+        : (16-p.length) + " point" + (16-p.length===1?"":"s") + " still to enter.");
+  $("hint").className = "hint" + (parsed.error ? " bad" : "");
+  $("cast").className = "cast" + (parsed.error ? " bad" : "");
+  $("cast").setAttribute("aria-invalid", parsed.error ? "true" : "false");
+  $("save").disabled = !ready;
+  document.body.classList.toggle("viewing", state.viewing);
+
+  if (!ready){
+    state.currentId = null;
+    $("out").innerHTML = (p.length === 0 && !parsed.error) ? savedListHTML() : "";
+    return;
+  }
+
+  state.editingId = null;
+
+  const sh = deriveShield(p), map = ALLOTMENT.map, houses = {};
+  for (const h in map) houses[h] = sh[map[h]];
+
+  const tally = {Fire:0,Air:0,Water:0,Earth:0};
+  for (const h in houses) tally[BY_KEY[houses[h]].el]++;
+  houses.judgeKey = sh.Judge;
+  houses.sig = state.sig || 0;
+  const pof = partOfFortune(sh, map);
+  houses.pof = pof.house;
+
+  const J = BY_KEY[sh.Judge];
+  const wit = (label,fig) =>
+    '<div class="fcard">'+tinted(fig,1.15)+'<div><div class="fcard-label">'+label+'</div>'
+    + '<div class="fcard-name">'+BY_KEY[fig].name+'</div>'
+    + '<div class="fcard-meta">'+BY_KEY[fig].el+' · '+BY_KEY[fig].planet+'</div></div></div>';
+
+  let reading;
+  if (state.selected){
+    const h = state.selected, f = BY_KEY[houses[h]], m = HOUSES[h], A = aspectsOf(h);
+    const ring = signRing(houses), dg = dignityOf(f, h);
+    const dig = (ring ? "House sign <span class=\"sym\">" + ring[h][1] + "</span> " + ring[h][0] + ". " : "")
+      + (dg ? f.name + " is " + DIG_WORD[dg] + "." : f.name + " has no accidental dignity here.");
+    const same = sameFigureHouses(houses,h);
+    reading = '<div class="reading"><div class="rhead"><span class="eyebrow">House '+h+' · '+map[h]+'</span>'
+      + '<h2>'+m.title+'</h2><p class="rkeys">'+m.keys+'</p></div>'
+      + '<div class="rfig">'+tinted(f.key,1.5)+'<div><div class="rname">'+f.name+' <em>'+f.gloss+'</em></div>'
+      + '<div class="rmeta">'+f.el+' · '+f.planet+' · '+f.sign+' · '+f.nature+'</div></div></div>'
+      + '<p class="rread">'+f.reading+'</p>'
+      + '<p class="rjoin"><strong>'+f.name+'</strong> falling in the '+ord(h)+' brings '+f.keys+' to bear on '+m.keys+'.</p>'
+      + '<p class="rgd"><span class="gdtag">GD</span> '+GD[f.name][0]
+      + ' <em>In the '+ord(h)+':</em> '+GD[f.name][h]+'</p>'
+      + '<p class="rdig">'+dig+'</p>'
+      + '<div class="asp"><span class="eyebrow">Aspects to house '+h+'</span>'
+      + Object.keys(A).map(k =>
+          '<div class="asprow"><span class="aspk" style="color:'+ASPECT_TONE[k]+'">'+k+'</span><span>'
+          + A[k].map(t => t+" "+BY_KEY[houses[t]].name).join(" · ")+'</span></div>').join("")
+      + (same.length ? '<div class="asprow"><span class="aspk" style="color:#C9C2B2">Same figure</span><span>houses '
+          + same.join(", ")+' — the matter perfects by occupation</span></div>' : "")
+      + '</div></div>';
+  } else {
+    reading = '<div class="reading empty"><span class="eyebrow">Reading</span>'
+      + '<p>Tap any house in the chart to read the figure that fell there, with its aspects to the rest of the chart.</p></div>';
+  }
+
+  $("out").innerHTML =
+    '<div class="viewbar"><button id="back" class="back" type="button">\u2190 Back</button>'
+    + '<div class="vbq'+(state.question ? "" : " none")+'">'
+    + esc(state.question || "No question recorded") + '</div>'
+    + (state.sig ? '<div class="vbsig">Significator \u00b7 house '+state.sig+'</div>' : "")
+    + '</div>'
+    + '<div class="grid"><section class="chartpane">'
+    + '<div class="charthead"><div class="method">'
+    + [["shield","Shield"],["square","Square"],["wheel","Wheel"]].map(v =>
+        '<button class="vlink'+(state.view===v[0]?" on":"")+'" data-v="'+v[0]+'">'+v[1]+'</button>').join("")
+    + '</div></div>'
+    + (state.view === "shield" ? shieldSVG(sh, houses)
+       : state.view === "wheel" ? wheelSVG(houses) : chartSVG(houses))
+    + '<div class="legend">' + Object.keys(EL).map(e =>
+        '<span class="lg"><i style="background:'+EL[e].c+'"></i>'+e+' · '+tally[e]+'</span>').join("")
+    + '</div></section><section class="side">' + reading
+    + '<div class="verdict"><div class="vhead"><span class="eyebrow">Judge</span>'
+    + '<span class="vname" style="color:'+EL[J.el].c+'">'+J.name+'</span></div>'
+    + '<div class="vbody">'+tinted(J.key,1.7)+'<div><p class="vread">'+J.reading+'</p>'
+    + '<p class="vnat">Nature: <strong>'+J.nature+'</strong> · '+J.el+' · '+J.planet+'</p></div></div>'
+    + (JUDGEABLE.has(sh.Judge) ? "" : '<p class="err">This figure cannot arise as a Judge — check the cast.</p>')
+    + '<div class="wits">'
+    + wit("Right witness · the querent's side, how it began", sh.RW)
+    + wit("Left witness · the quesited's side, how it goes", sh.LW)
+    + wit("Reconciler · Judge + house " + (state.selected || houses.sig || 1)
+          + (state.selected || houses.sig ? "" : " — tap the house of the thing demanded"),
+          addFig(sh.Judge, houses[state.selected || houses.sig || 1]))
+    + '</div>'
+    + '<div class="fourth"><span class="eyebrow">Part of Fortune ⊗</span>'
+    + '<div class="fourth-in"><span>House ' + pof.house + ' — ready money in the querent\u2019s hands, '
+    + 'and of the greatest importance in questions of money.</span></div></div>'
+    + '<div class="fourth"><span class="eyebrow">Fourth house · the end of the matter</span>'
+    + '<div class="fourth-in">'+tinted(houses[4],1)+'<span>'+BY_KEY[houses[4]].name+' — '+BY_KEY[houses[4]].keys+'</span></div>'
+    + '</div></div></section></div>'
+    + '<section class="export"><div class="exphead"><span class="eyebrow">Export for AI interpretation</span>'
+    + '<button id="copy" class="paste" type="button">Copy</button></div>'
+    + '<textarea class="expbox" id="expbox" readonly spellcheck="false" rows="16">'
+    + esc(exportText(sh, houses, tally)) + '</textarea></section>';
+}
+
+/* inline editing of a saved record: the question is written straight through to
+   storage, and the row's own display line is kept in step without a re-render
+   so the caret is never thrown out of the field. */
+document.addEventListener("input", e => {
+  const n = e.target.closest && e.target.closest("[data-note]");
+  if (!n) return;
+  const v = e.target.value;
+  updateCast(n.dataset.note, { note: v });
+  const row = n.closest(".crow"), disp = row && row.querySelector(".cnote");
+  if (disp){
+    disp.textContent = v || "No question recorded";
+    disp.className = "cnote" + (v ? "" : " none");
+  }
+});
+document.addEventListener("change", e => {
+  const s = e.target.closest && e.target.closest("[data-sig]");
+  if (!s) return;
+  updateCast(s.dataset.sig, { sig: +e.target.value });
+  render();
+});
+
+$("sigsel").innerHTML = sigOptions(0);
+
+$("cast").addEventListener("input", e => { state.raw = e.target.value; state.selected = null; render(); });
+$("question").addEventListener("input", e => { state.question = e.target.value; render(); });
+$("sigsel").addEventListener("change", e => { state.sig = +e.target.value; render(); });
+
+/* keeping the record is deliberate: it stores the cast with its question and
+   significator, then stands back so only the chart is left on screen */
+$("save").addEventListener("click", () => {
+  const parsed = parseCast(state.raw);
+  if (parsed.error || parsed.pts.length !== 16) return;
+  state.currentId = rememberCast(parsed.pts.join(""), state.question, state.sig);
+  state.viewing = true;
+  state.pendingDel = null; state.editingId = null;
+  render();
+  window.scrollTo(0, 0);
+});
+
+function clearDraft(){
+  state.raw = ""; state.question = ""; state.sig = 0;
+  state.viewing = false; state.currentId = null; state.selected = null; state.pendingDel = null;
+  $("cast").value = ""; $("question").value = ""; $("sigsel").value = "0";
+}
+
+$("paste").addEventListener("click", () => {
+  const clip = navigator.clipboard && navigator.clipboard.readText && navigator.clipboard.readText();
+  if (!clip) return pasteFallback();
+  clip.then(txt => {
+    state.raw = (txt || "").trim();
+    state.selected = null;
+    $("cast").value = state.raw;
+    render();
+  }).catch(pasteFallback);
+});
+function pasteFallback(){
+  $("cast").focus(); $("cast").select();
+  $("hint").textContent = "Clipboard blocked here \u2014 long-press the field and choose Paste.";
+  $("hint").className = "hint bad";
+}
+document.addEventListener("click", e => {
+  const del = e.target.closest("[data-del]");
+  if (del){
+    const id = del.dataset.del;
+    if (state.pendingDel === id){ deleteCast(id); state.pendingDel = null; if (state.editingId === id) state.editingId = null; }
+    else state.pendingDel = id;
+    render(); return;
+  }
+  const ed = e.target.closest("[data-edit]");
+  if (ed){
+    const id = ed.dataset.edit;
+    state.editingId = state.editingId === id ? null : id;
+    state.pendingDel = null;
+    render();
+    const field = document.querySelector('[data-note="'+id+'"]');
+    if (field) field.focus();
+    return;
+  }
+  if (e.target.closest(".cedit")) return;      /* leave the open editor alone */
+  if (e.target.id === "back"){
+    clearDraft();
+    render();
+    window.scrollTo(0, 0);
+    return;
+  }
+  const open = e.target.closest("[data-open]");
+  if (open){
+    const c = getCast(open.dataset.open);
+    if (c){
+      state.raw = c.pts.replace(/(.{4})(?=.)/g, "$1,");
+      state.question = c.note || ""; state.sig = c.sig || 0;
+      state.currentId = c.id; state.viewing = true;
+      state.selected = null; state.pendingDel = null; state.editingId = null;
+      $("cast").value = state.raw;
+      $("question").value = state.question;
+      $("sigsel").value = String(state.sig);
+      render();
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  if (state.pendingDel){ state.pendingDel = null; render(); }
+  if (e.target.id === "ex"){
+    clearDraft();
+    state.raw = "1111,1222,1221,2122";
+    state.viewing = true;
+    $("cast").value = state.raw;
+    render();
+    window.scrollTo(0, 0);
+    return;
+  }
+  const v = e.target.closest("[data-v]");
+  if (v){
+    state.view = v.dataset.v;
+    try { localStorage.setItem("geomancy-view", state.view); } catch (e) {}
+    render(); return;
+  }
+  if (e.target.id === "copy"){
+    const box = $("expbox"), btn = e.target;
+    const done = () => { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Copy"; }, 1400); };
+    const w = navigator.clipboard && navigator.clipboard.writeText && navigator.clipboard.writeText(box.value);
+    if (w) w.then(done).catch(() => { box.focus(); box.select(); });
+    else { box.focus(); box.select(); }
+    return;
+  }
+  const r = e.target.closest("[data-h]");
+  if (r){ const h = +r.dataset.h; state.selected = state.selected === h ? null : h; render(); }
+});
+render();
+</script>
+</body>
+</html>
