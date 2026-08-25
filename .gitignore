@@ -1,0 +1,10 @@
+# Wrangler / Cloudflare local state
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
