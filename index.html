@@ -226,7 +226,7 @@ body.viewing .viewbar{margin-top:0;}
 <header class="head">
   <div>
     <h1>Geomantic judgment</h1>
-    <p class="sub">Enter the sixteen lines, from the head of the first Mother to the feet of the fourth. <button type="button" id="ex" class="linkish">Show example</button></p>
+    <p class="sub">Enter the sixteen lines, from the head of the first Mother to the feet of the fourth. A whole line pasted in — question, house and points together — is read apart. <button type="button" id="ex" class="linkish">Show example</button></p>
   </div>
 </header>
 
@@ -483,7 +483,8 @@ const tinted = (fig,size) => '<span style="color:'+EL[BY_KEY[fig].el].c+'">'+gly
 
 /* ── state ── */
 let state = { raw:"", question:"", sig:0, viewing:false,
-              selected:null, view:"square", currentId:null, pendingDel:null, editingId:null };
+              selected:null, view:"square", currentId:null, pendingDel:null, editingId:null,
+              notice:null };
 try { const v = localStorage.getItem("geomancy-view");
       if (v === "shield" || v === "wheel" || v === "square") state.view = v; }
 catch (e) { /* storage unavailable; the default stands */ }
@@ -554,6 +555,50 @@ function parseCast(raw){
   if (bad.length) error = "Only 1 and 2 are points. Remove " + bad.map(c => "\u201c"+c+"\u201d").join(", ") + ".";
   else if (pts.length > 16) error = pts.length + " points entered. A cast has 16 \u2014 remove " + (pts.length-16) + ".";
   return { pts, error };
+}
+
+/* ── pasted entries ──────────────────────────────────────
+   A line lifted out of a journal carries more than the points:
+
+     - Geomancy: What’s the potential between Vivi and me? 7th. 2211211122121122
+
+   The sixteen points are the only long run of 1s and 2s such a line
+   can hold, so they come out without disturbing the prose around
+   them; an ordinal names the significator, and what is left over is
+   the question. Anything without letters in it is left to parseCast
+   untouched, so typing by hand behaves exactly as it did. */
+
+function houseFrom(s){
+  let m = /\bhouse\s*(\d{1,2})\b/i.exec(s);
+  if (!m) m = /\b(\d{1,2})\s*(?:st|nd|rd|th)\b(?:\s*house)?/i.exec(s);
+  const h = m ? +m[1] : 0;
+  return (h >= 1 && h <= 12) ? { house:h, token:m[0] } : { house:0, token:null };
+}
+
+function tidyQuestion(s){
+  /* an explicit label wins — it is what the chart's own export writes */
+  const lab = /\bquestion[ \t]*:[ \t]*(.+)/i.exec(s);
+  if (lab) s = lab[1];
+  return s.replace(/^[\s>*•\-–—]+/, "")
+          .replace(/^[A-Za-z][A-Za-z ]{0,18}:\s*/, "")
+          .replace(/\s+/g, " ")
+          .replace(/^[\s.,;:\-–—]+|[\s.,;:\-–—]+$/g, "")
+          .trim();
+}
+
+function parseEntry(raw){
+  if (!/[A-Za-z]/.test(raw)) return null;
+  const run = /(?:[12][\s,;:._\/\\|()\[\]–—-]*){12,}/g;
+  let m, best = null;
+  while ((m = run.exec(raw))){
+    const d = m[0].replace(/[^12]/g, "");
+    if (!best || d.length > best.d.length) best = { d:d, at:m.index, len:m[0].length };
+  }
+  if (!best) return null;
+  let rest = raw.slice(0, best.at) + " " + raw.slice(best.at + best.len);
+  const h = houseFrom(rest);
+  if (h.token) rest = rest.replace(h.token, " ");
+  return { pts: best.d.slice(0,16), sig: h.house, question: tidyQuestion(rest) };
 }
 
 const RING_POS = {12:[-30,146],1:[-30,286],2:[-30,426],11:[140,-22],10:[280,-22],9:[420,-22],
@@ -791,6 +836,7 @@ function render(){
   $("count").textContent = ready ? "" : (parsed.error ? "\u2014" : p.length) + "/16";
 
   $("hint").innerHTML = parsed.error ? esc(parsed.error)
+    : state.notice ? esc(state.notice)
     : (p.length === 0 || ready
         ? "1 for a single point, 2 for a double point."
         : (16-p.length) + " point" + (16-p.length===1?"":"s") + " still to enter.");
@@ -915,7 +961,28 @@ document.addEventListener("change", e => {
 
 $("sigsel").innerHTML = sigOptions(0);
 
-$("cast").addEventListener("input", e => { state.raw = e.target.value; state.selected = null; render(); });
+/* a pasted journal line fills the question and significator alongside the
+   points; plain digits fall straight through to the old behaviour */
+function takeCast(txt){
+  state.selected = null;
+  const entry = parseEntry(txt);
+  if (!entry){ state.raw = txt; state.notice = null; render(); return; }
+  state.raw = entry.pts;
+  $("cast").value = entry.pts;
+  const got = [];
+  if (entry.question){
+    state.question = entry.question; $("question").value = entry.question;
+    got.push("the question");
+  }
+  if (entry.sig){
+    state.sig = entry.sig; $("sigsel").value = String(entry.sig);
+    got.push("house " + entry.sig + " as significator");
+  }
+  state.notice = got.length ? "Read from the line: " + got.join(", ") + "." : null;
+  render();
+}
+
+$("cast").addEventListener("input", e => { takeCast(e.target.value); });
 $("question").addEventListener("input", e => { state.question = e.target.value; render(); });
 $("sigsel").addEventListener("change", e => { state.sig = +e.target.value; render(); });
 
@@ -934,6 +1001,7 @@ $("save").addEventListener("click", () => {
 function clearDraft(){
   state.raw = ""; state.question = ""; state.sig = 0;
   state.viewing = false; state.currentId = null; state.selected = null; state.pendingDel = null;
+  state.notice = null;
   $("cast").value = ""; $("question").value = ""; $("sigsel").value = "0";
 }
 
@@ -941,10 +1009,9 @@ $("paste").addEventListener("click", () => {
   const clip = navigator.clipboard && navigator.clipboard.readText && navigator.clipboard.readText();
   if (!clip) return pasteFallback();
   clip.then(txt => {
-    state.raw = (txt || "").trim();
-    state.selected = null;
-    $("cast").value = state.raw;
-    render();
+    const t = (txt || "").trim();
+    $("cast").value = t;
+    takeCast(t);
   }).catch(pasteFallback);
 });
 function pasteFallback(){
@@ -983,7 +1050,7 @@ document.addEventListener("click", e => {
     if (c){
       state.raw = c.pts.replace(/(.{4})(?=.)/g, "$1,");
       state.question = c.note || ""; state.sig = c.sig || 0;
-      state.currentId = c.id; state.viewing = true;
+      state.currentId = c.id; state.viewing = true; state.notice = null;
       state.selected = null; state.pendingDel = null; state.editingId = null;
       $("cast").value = state.raw;
       $("question").value = state.question;
