@@ -4,11 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Geomantica">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#151A1D">
 <meta name="color-scheme" content="light dark">
-<title>Geomantic judgment</title>
+<title>Geomantica</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23151A1D'/%3E%3Cg fill='%23B4A343'%3E%3Ccircle cx='10' cy='7' r='2.4'/%3E%3Ccircle cx='22' cy='7' r='2.4'/%3E%3Ccircle cx='10' cy='14' r='2.4'/%3E%3Ccircle cx='22' cy='14' r='2.4'/%3E%3Ccircle cx='16' cy='21' r='2.4'/%3E%3Ccircle cx='16' cy='28' r='2.4'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Symbols+2&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -17,6 +20,7 @@
   color-scheme:light dark;
   --ground:#151A1D; --panel:#1D2429; --rule:#39444B;
   --bone:#E8E3D6; --dim:#8E9A9E; --citrine:#B4A343; --err:#C46A4A;
+  --accent-solid:#B4A343; --on-accent:#151A1D;
   /* Malkuth's four colours, standing for the elements */
   --el-fire:#A0552F; --el-air:#B4A343; --el-water:#66763F; --el-earth:#6E5A45;
   --tint:.17; --tint-hover:.32; --tint-sel:.46;
@@ -26,6 +30,7 @@
   :root{
     --ground:#EDE9E0; --panel:#F8F6F1; --rule:#C6BEB0;
     --bone:#22272A; --dim:#6B7378; --citrine:#8A7A18; --err:#9E3B1C;
+    --accent-solid:#6E6112; --on-accent:#FFFFFF;
     --el-fire:#8C4526; --el-air:#8A7A18; --el-water:#4D5A2C; --el-earth:#2E2A25;
     --tint:.15; --tint-hover:.28; --tint-sel:.40;
   }
@@ -70,6 +75,16 @@ body{
 .paste:focus-visible{outline:2px solid var(--citrine);outline-offset:2px;}
 .paste[disabled]{opacity:.4;cursor:default;}
 .paste[disabled]:hover{color:var(--dim);border-color:var(--rule);}
+/* Save carries the one action that keeps a cast, so it is filled rather
+   than outlined — and stays outlined and quiet until the sixteen points
+   are in, which makes completing the cast visible at a glance. */
+#save{font-size:12px;font-weight:600;letter-spacing:.12em;padding:11px 26px;
+  background:var(--accent-solid);border-color:var(--accent-solid);color:var(--on-accent);}
+#save:hover:not([disabled]){background:var(--bone);border-color:var(--bone);color:var(--ground);}
+#save:active:not([disabled]){transform:translateY(1px);}
+#save:focus-visible{outline:2px solid var(--bone);outline-offset:2px;}
+#save[disabled],#save[disabled]:hover{background:transparent;border-color:var(--rule);
+  color:var(--dim);opacity:.55;}
 .iconbtn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:46px;
   border:1px solid var(--rule);background:transparent;color:var(--dim);border-radius:2px;cursor:pointer;}
 .iconbtn:hover{color:var(--bone);border-color:var(--bone);}
@@ -225,7 +240,7 @@ body.viewing .viewbar{margin-top:0;}
 
 <header class="head">
   <div>
-    <h1>Geomantic judgment</h1>
+    <h1>Geomantica</h1>
     <p class="sub">Enter the sixteen lines, from the head of the first Mother to the feet of the fourth. A whole line pasted in — question, house and points together — is read apart. <button type="button" id="ex" class="linkish">Show example</button></p>
   </div>
 </header>
