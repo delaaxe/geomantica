@@ -736,7 +736,7 @@ function shieldSVG(sh, houses){
 }
 
 /* Circular wheel: ascendant due west, houses counterclockwise, 30 degrees each. */
-const W = {cx:310, cy:310, rOut:300, rSign:262, rSignG:281, rName:224, rFig:168, rNum:124, rHub:95};
+const W = {cx:310, cy:310, rOut:300, rSign:262, rSignG:281, rName:228, rFig:168, rFlat:210, rNum:124, rHub:95};
 const pol = (r,a) => [ (W.cx + r*Math.cos(a*Math.PI/180)).toFixed(2),
                        (W.cy - r*Math.sin(a*Math.PI/180)).toFixed(2) ];
 const houseStart = h => 180 + 30*(h-1);
@@ -744,6 +744,29 @@ const houseMid   = h => 195 + 30*(h-1);
 function annulus(r1,r2,a1,a2){
   return "M"+pol(r2,a1)+"A"+r2+" "+r2+" 0 0 0 "+pol(r2,a2)
        + "L"+pol(r1,a2)+"A"+r1+" "+r1+" 0 0 1 "+pol(r1,a1)+"Z";
+}
+
+/* Where a house sets out its figure and its name. The four wedges either side
+   of the horizon lie sideways: their depth runs across the page, so a name set
+   beyond the figure would meet the hub at one end and the rim at the other.
+   Those carry the figure out towards the rim with the name stacked over or
+   under it, on the outer side, and inside the same wedge. */
+function housePlot(h){
+  const m = houseMid(h), rad = m*Math.PI/180;
+  const flat = Math.abs(Math.cos(rad)) > 0.9, up = Math.sin(rad) > 0 ? -1 : 1;
+  const c = pol(flat ? W.rFlat : W.rFig, m);
+  return flat
+    ? {flat:true,  g:[c[0], (+c[1] - up*14).toFixed(2)], n:[c[0], (+c[1] + up*32).toFixed(2)]}
+    : {flat:false, g:c, n:pol(W.rName, m)};
+}
+
+/* A two-word name is set over two lines: no wedge is wide enough to take one
+   whole without crowding the cusp lines either side of it. */
+function wheelName(x, y, name){
+  const w = name.split(" ");
+  return '<text x="'+x+'" y="'+(+y - (w.length-1)*5.3).toFixed(2)+'" text-anchor="middle" class="wname">'
+       + w.map((t,i) => '<tspan x="'+x+'"'+(i ? ' dy="10.6"' : '')+'>'+t+'</tspan>').join("")
+       + '</text>';
 }
 
 function wheelSVG(houses){
@@ -756,9 +779,9 @@ function wheelSVG(houses){
        + annulus(W.rHub, W.rSign, a, a+30) + '" style="fill:'+EL[f.el].c+'"/>';
   }
   if (state.selected){
-    const A = aspectsOf(state.selected);
+    const A = aspectsOf(state.selected), p1 = housePlot(state.selected).g;
     for (const kind in A) A[kind].forEach(t => {
-      const p1 = pol(W.rFig, houseMid(state.selected)), p2 = pol(W.rFig, houseMid(t));
+      const p2 = housePlot(t).g;
       const dash = kind==="Opposition" ? "none" : kind==="Square" ? "5 4" : "2 5";
       s += '<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="'+ASPECT_TONE[kind]
          + '" stroke-width="1.4" stroke-opacity="0.8" stroke-dasharray="'+dash+'"/>';
@@ -772,17 +795,20 @@ function wheelSVG(houses){
        + pol(W.rOut,a)[1]+'" stroke="var(--rule)" stroke-width="'+(ang?2:1)+'"/>';
   }
   for (let h = 1; h <= 12; h++){
-    const f = BY_KEY[houses[h]], m = houseMid(h), d = dignity(f,h);
-    const gp = pol(W.rFig, m), np = pol(W.rName, m), hp = pol(W.rHub+18, houseMid(h));
+    const f = BY_KEY[houses[h]], m = houseMid(h), d = dignity(f,h), pof = houses.pof === h;
+    const plot = housePlot(h), gp = plot.g, np = plot.n;
+    /* on the sideways wedges the dignity and fortune marks run radially, so the
+       number is set out far enough for them to clear the hub */
+    const hp = pol(W.rHub + 18 + (plot.flat ? ((d?11:0) + (pof?17:0))/2 : 0), m);
     if (ring){ const sp = pol(W.rSignG, m);
       s += '<text x="'+sp[0]+'" y="'+(+sp[1]+7)+'" text-anchor="middle" class="hsign">'+ring[h][1]+'</text>'; }
     s += '<g class="region-g" data-h="'+h+'">'
-       + '<text x="'+np[0]+'" y="'+np[1]+'" text-anchor="middle" class="wname">'+f.name+'</text>'
+       + wheelName(np[0], np[1], f.name)
        + '<g transform="translate('+(gp[0]-32.8)+','+(+gp[1]-25.6)+')" style="color:'+EL[f.el].c+'">'+glyph(f.key,1.6)+'</g>'
        + '<text x="'+(+gp[0]+29)+'" y="'+(+gp[1]+8)+'" text-anchor="middle" class="hplanet">'+(PLANET_GLYPH[f.planet]||"")+'</text>'
        + '<text x="'+hp[0]+'" y="'+(+hp[1]+5)+'" text-anchor="middle" class="hnum">' + h
        + (d ? '<tspan class="hdig" dx="4">'+d+'</tspan>' : '')
-       + (houses.pof === h ? '<tspan class="hpof" dx="4">\u2297</tspan>' : '') + '</text></g>';
+       + (pof ? '<tspan class="hpof" dx="4">\u2297</tspan>' : '') + '</text></g>';
   }
   const J = BY_KEY[houses.judgeKey];
   s += '<text x="'+W.cx+'" y="'+(W.cy-46)+'" text-anchor="middle" class="hubcap">JUDGE</text>'
