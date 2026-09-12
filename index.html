@@ -799,11 +799,16 @@ function exportText(sh, houses, tally){
   const pofx = partOfFortune(sh, ALLOTMENT.map);
   const F = k => BY_KEY[k];
   const row = (lab,k) => "  " + pad(lab,16) + pad(F(k).name,16) + k;
+  /* the chosen house is the thing demanded; with none chosen the first house
+     answers for the matter as well as for the querent, as it did before. */
+  const sig = state.sig || 0, dem = sig || 1;
   const L = [];
   L.push("GEOMANTIC CHART");
   L.push("Cast: " + [sh.M1, sh.M2, sh.M3, sh.M4].join(","));
   if (state.question) L.push("Question: " + state.question);
-  if (state.sig) L.push("Significator: house " + state.sig + " — " + HOUSES[state.sig].title);
+  L.push(sig
+    ? "Significator: house " + sig + " — " + HOUSES[sig].title + " (" + HOUSES[sig].keys + ")"
+    : "Significator: none chosen — read the first house for the matter as well as for the querent.");
   L.push("Notation: each figure is four rows head to feet; 1 = single point, 2 = double point.");
   L.push("");
   L.push("SHIELD");
@@ -813,7 +818,9 @@ function exportText(sh, houses, tally){
   L.push(row("Right witness", sh.RW));
   L.push(row("Left witness", sh.LW));
   L.push(row("Judge", sh.Judge));
-  L.push(row("Reconciler", addFig(sh.Judge, houses[1])) + "   (Judge + house 1; GD forms it from the house of the thing demanded)");
+  L.push(row("Reconciler", addFig(sh.Judge, houses[dem])) + "   (Judge + house " + dem
+    + (sig ? ", the significator" : ", the first for want of a significator")
+    + "; GD forms it from the house of the thing demanded)");
   L.push("");
   const ring = signRing(houses);
   L.push("HOUSES  (Golden Dawn allotment: Mothers angular, Daughters succedent,");
@@ -822,11 +829,42 @@ function exportText(sh, houses, tally){
   L.push("Dignity here is accidental: it is taken from the house a figure falls in,");
   L.push("the houses answering to the signs in order, and judged by the figure's ruling planet. "
     + "[dom] own house, [exa] exaltation, [det] detriment, [fal] fall.");
+  if (sig) L.push("The significator house, the thing demanded, is marked with a star.");
   for (let h = 1; h <= 12; h++){
     const f = F(houses[h]), m = HOUSES[h];
-    L.push("  " + pad(String(h),4) + pad(ALLOTMENT.map[h],4) + pad(f.name,16)
+    L.push((h === sig ? "* " : "  ") + pad(String(h),4) + pad(ALLOTMENT.map[h],4) + pad(f.name,16)
       + pad(ring ? ring[h][0] : "-",13) + pad("("+f.el+", "+f.planet+"; "+f.nature+")",34)
       + pad(dignityOf(f,h) ? "[" + dignityOf(f,h).slice(0,3) + "]" : "",6) + m.title + " — " + m.keys);
+  }
+  if (sig){
+    const f = F(houses[sig]), m = HOUSES[sig], A = aspectsOf(sig), dg = dignityOf(f, sig);
+    /* the first house is called out on its own line below, so it is left out here */
+    const same = sameFigureHouses(houses, sig).filter(h => sig === 1 || h !== 1);
+    L.push("");
+    L.push("SIGNIFICATOR  house " + sig + " · " + ALLOTMENT.map[sig]
+      + " — " + m.title + " (" + m.keys + ")");
+    L.push("  " + pad("Figure",16) + pad(f.name,16) + f.key
+      + "   (" + f.el + ", " + f.planet + "; " + f.nature + ")");
+    L.push("  " + pad("Figure reads",16) + f.reading);
+    L.push("  " + pad("Falling here",16) + f.name + " brings " + f.keys + " to bear on " + m.keys + ".");
+    L.push("  " + pad("Dignity",16) + (ring ? ring[sig][0] + " on this house; " : "")
+      + (dg ? f.name + " is " + DIG_WORD[dg] + "." : f.name + " has no accidental dignity here."));
+    L.push("  " + pad("GD generally",16) + GD[f.name][0]);
+    L.push("  " + pad("GD in the " + ord(sig),16) + GD[f.name][sig]);
+    Object.keys(A).forEach((k,i) => L.push("  " + pad(i ? "" : "Aspects",16) + pad(k,12)
+      + A[k].map(t => t + " " + F(houses[t]).name).join(" · ")));
+    if (same.length) L.push("  " + pad("Same figure",16) + f.name + " also stands in house"
+      + (same.length > 1 ? "s " : " ") + same.join(", "));
+    if (sig !== 1) L.push("  " + pad("The querent",16) + "house 1 " + F(houses[1]).name
+      + " (" + F(houses[1]).el + ", " + F(houses[1]).planet + ")"
+      + (houses[1] === houses[sig]
+          ? " — one figure stands in both houses; the matter perfects by occupation"
+          : " — the querent's own figure, to be weighed against this one"));
+    L.push("  " + pad("Reconciler",16) + pad(F(addFig(sh.Judge, houses[sig])).name,16)
+      + addFig(sh.Judge, houses[sig]) + "   (Judge + this house)");
+    L.push(sig === 1
+      ? "The querent's own house is the thing demanded; judge the question from it, the Judge over all."
+      : "Judge the question from this house, the first house for the querent, the Judge over both.");
   }
   L.push("");
   L.push("ELEMENTS  " + Object.keys(tally).map(e => e+" "+tally[e]).join("  ·  "));
