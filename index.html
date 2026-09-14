@@ -159,6 +159,7 @@ body{
 .region.sel:hover{fill-opacity:var(--tint-sel);}
 .region.sig{stroke:var(--citrine);stroke-width:2;}
 .region-g{cursor:pointer;}
+.hub.on{cursor:pointer;}
 .hnum{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;fill:var(--bone);}
 .fname{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.04em;fill:var(--dim);}
 .hplanet{font-family:var(--symbol);font-size:22px;font-weight:400;fill:var(--dim);}
@@ -811,10 +812,14 @@ function wheelSVG(houses){
        + (d ? '<tspan class="hdig" dx="4">'+d+'</tspan>' : '')
        + (pof ? '<tspan class="hpof" dx="4">\u2297</tspan>' : '') + '</text></g>';
   }
+  /* the hub answers to a tap by letting the chosen house go, the Judge standing
+     over the whole chart rather than over any one house */
   const J = BY_KEY[houses.judgeKey];
-  s += '<text x="'+W.cx+'" y="'+(W.cy-46)+'" text-anchor="middle" class="hubcap">JUDGE</text>'
+  s += '<g class="hub'+(state.selected ? " on" : "")+'" data-hub="1">'
+     + '<circle cx="'+W.cx+'" cy="'+W.cy+'" r="'+W.rHub+'" fill="transparent"/>'
+     + '<text x="'+W.cx+'" y="'+(W.cy-46)+'" text-anchor="middle" class="hubcap">JUDGE</text>'
      + '<g transform="translate('+(W.cx-24.7)+','+(W.cy-30.4)+')" style="color:'+EL[J.el].c+'">'+glyph(J.key,1.9)+'</g>'
-     + '<text x="'+W.cx+'" y="'+(W.cy+52)+'" text-anchor="middle" class="hubname">'+J.name+'</text>';
+     + '<text x="'+W.cx+'" y="'+(W.cy+52)+'" text-anchor="middle" class="hubname">'+J.name+'</text></g>';
   return s + '</svg>';
 }
 
@@ -1162,6 +1167,10 @@ document.addEventListener("click", e => {
     const w = navigator.clipboard && navigator.clipboard.writeText && navigator.clipboard.writeText(box.value);
     if (w) w.then(done).catch(() => { box.focus(); box.select(); });
     else { box.focus(); box.select(); }
+    return;
+  }
+  if (e.target.closest("[data-hub]")){
+    if (state.selected){ state.selected = null; render(); }
     return;
   }
   const r = e.target.closest("[data-h]");
