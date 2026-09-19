@@ -973,7 +973,8 @@ for (const h in ALLOTMENT.map) SHIELD_HOUSE[ALLOTMENT.map[h]] = +h;
 const SHIELD_TAG = {M1:"Mother 1",M2:"Mother 2",M3:"Mother 3",M4:"Mother 4",
   D1:"Daughter 1",D2:"Daughter 2",D3:"Daughter 3",D4:"Daughter 4",
   N1:"Niece 1",N2:"Niece 2",N3:"Niece 3",N4:"Niece 4",
-  RW:"Right witness",LW:"Left witness",Judge:"Judge",Reconciler:"Reconciler \u00b7 Judge + Mother 1"};
+  RW:"Right witness",LW:"Left witness",Judge:"Judge",
+  Reconciler:"Reconciler \u00b7 Judge + Mother 1 (Zelator)"};
 
 function shieldSVG(sh, houses){
   const CW = 104, RH = 132, WIDE = CW*8;          /* eight columns of mothers and daughters */
@@ -1320,7 +1321,13 @@ function perfectionDetailHTML(res, judgeKey){
     + 'translation, a third figure standing next to both. Those four turn on houses being '
     + 'neighbours, not on aspect. Favourable aspect \u2014 sextile or trine \u2014 is a mode of its own '
     + 'and counts only once a significator has passed elsewhere; square and opposition deny. '
-    + 'Company of houses, Greer\u2019s sixth mode, is not implemented.</p>';
+    + 'Company of houses, Greer\u2019s sixth mode, is not implemented.</p>'
+    + '<p class="pnote">The rest of this chart is Golden Dawn: the allotment of figures to houses, '
+    + 'the dignities, the tables, the Part of Fortune and the Reconciler all follow Regardie\u2019s '
+    + '<em>Book Eight</em> and the Zelator paper. Neither of those uses modes of perfection at all. '
+    + 'In the Golden Dawn method the Judge answers a yes-or-no question on its own and the house '
+    + 'chart is for detail; aspects there are a tally of helping and opposing figures around the '
+    + 'house asked about, not a test. Perfection is Greer\u2019s, laid over that.</p>';
 }
 
 /* the drawer lives outside the re-rendered chart, so opening it animates and a
@@ -1442,8 +1449,8 @@ function render(){
     + '<p class="vnat">Nature: <strong>'+J.nature+'</strong> · '+J.el+' · '+J.planet+'</p></div></div>'
     + (JUDGEABLE.has(sh.Judge) ? "" : '<p class="err">This figure cannot arise as a Judge — check the cast.</p>')
     + '<div class="wits">'
-    + wit("Right witness · the querent's side, how it began", sh.RW)
-    + wit("Left witness · the quesited's side, how it goes", sh.LW)
+    + wit("Right witness · the ninth and tenth figures", sh.RW)
+    + wit("Left witness · the eleventh and twelfth figures", sh.LW)
     + wit("Reconciler · Judge + house " + (state.selected || houses.sig || 1)
           + (state.selected || houses.sig ? "" : " — tap the house of the thing demanded"),
           addFig(sh.Judge, houses[state.selected || houses.sig || 1]))
