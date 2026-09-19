@@ -224,6 +224,7 @@ body{
 /* channels: the aspect lines are the same in every chart, so they are set as
    quiet plumbing and only the houses where a figure actually travels are given
    a row of their own */
+.lgline{width:16px;height:0;border-top-width:2px;border-radius:0;background:none;}
 .chanrow{display:flex;gap:10px;margin-top:8px;font-size:13.5px;line-height:1.45;align-items:baseline;}
 .chank{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;flex:0 0 94px;color:var(--citrine);}
@@ -521,7 +522,56 @@ const REGIONS = {
  3:{poly:[[.5,1],[0,1],[.25,.75]],glyph:[.2500,.9036],num:[.250,.804]},
  2:{poly:[[0,1],[0,.5],[.25,.75]],glyph:[.0964,.7500],num:[.205,.759]}
 };
-const ASPECT_TONE = {Trine:"var(--el-air)",Sextile:"var(--el-water)",Square:"var(--el-fire)",Opposition:"var(--err)"};
+/* What to draw between the houses. Every house stands in the same seven
+   aspects to the rest, so drawing them all drew the same star for any house
+   and said nothing about the cast. These are the channels something actually
+   travels along: where the selected house's figure stands again, what carries
+   between the two houses of the question, and what blocks it. */
+const CHANNEL = {
+  pass:{stroke:"var(--dim)", dash:"2 4", width:1.3, label:"the same figure"},
+  carry:{stroke:"var(--citrine)", dash:"none", width:1.8, label:"perfects"},
+  deny:{stroke:"var(--err)", dash:"5 4", width:1.6, label:"denies"}
+};
+function channelLines(houses, res, sel){
+  const L = [], pair = {}, key = (a,b) => Math.min(a,b) + ":" + Math.max(a,b);
+  const add = (a, b, kind, label) => {
+    if (a === b || pair[key(a,b)]) return;
+    pair[key(a,b)] = 1;
+    L.push({a:a, b:b, kind:kind, label:label});
+  };
+  if (res && res.testable){
+    res.modes.forEach(m => {
+      if (m.mode === "Occupation") add(res.q, res.s, "carry", "occupation");
+      else if (m.mode === "Conjunction")
+        m.where.slice(0,-1).forEach(h =>
+          add(h, m.side === "querent" ? res.s : res.q, "carry", "conjunction"));
+      else if (m.mode === "Mutation") add(m.where[0], m.where[1], "carry", "mutation");
+      else if (m.mode === "Translation")
+        m.carriers.forEach(c => { add(c.toQ, res.q, "carry", "translation");
+                                  add(c.toS, res.s, "carry", "translation"); });
+      else if (m.mode === "Favourable aspect")
+        m.legs.forEach(x => add(x.at, x.from, "carry",
+          (x.dir ? x.dir + " " : "") + x.kind.toLowerCase()));
+    });
+    res.hard.forEach(x => add(x.house, x.from, "deny", x.kind.toLowerCase()));
+  }
+  /* the selected house's own travels go on last, so a leg that already carries
+     keeps the stronger reading */
+  if (sel) ALL_HOUSES.forEach(t => {
+    if (t !== sel && houses[t] === houses[sel])
+      add(sel, t, "pass", BY_KEY[houses[sel]].name + " stands in both");
+  });
+  return L;
+}
+function channelLineSVG(L, at){
+  return L.map(l => {
+    const c = CHANNEL[l.kind], p = at(l.a), r = at(l.b);
+    return '<line x1="'+p[0]+'" y1="'+p[1]+'" x2="'+r[0]+'" y2="'+r[1]+'" stroke="'+c.stroke
+      + '" stroke-width="'+c.width+'" stroke-opacity="0.85" stroke-linecap="round"'
+      + ' stroke-dasharray="'+c.dash+'"><title>house '+l.a+' \u2013 house '+l.b+': '+l.label
+      + '</title></line>';
+  }).join("");
+}
 
 /* ── derivation ── */
 const addFig = (a,b) => {
@@ -538,10 +588,6 @@ function deriveShield(p){
           N1:N[0],N2:N[1],N3:N[2],N4:N[3],RW,LW,Judge:J,Reconciler:addFig(J,M[0])};
 }
 const norm = h => ((h-1+1200) % 12) + 1;
-const aspectsOf = h => ({
-  Trine:[norm(h+4),norm(h-4)], Square:[norm(h+3),norm(h-3)],
-  Sextile:[norm(h+2),norm(h-2)], Opposition:[norm(h+6)]
-});
 function ord(n){ const s=["th","st","nd","rd"], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
 
 /* The Judge's quality, on the five-step scale the Golden Dawn tables in this
@@ -685,7 +731,7 @@ function perfectionOf(houses, q, s){
     if (seen[tag]) return;
     seen[tag] = 1;
     if (A.good) fav.push({phrase:phrase, dir:A.dir, kind:A.kind, at:at, from:from});
-    else hard.push({kind:A.kind, house:at, text:phrase});
+    else hard.push({kind:A.kind, house:at, from:from, text:phrase});
   };
   const passPhrase = (who, at, from, A) =>
     (who === "querent" ? F(Fq) + ", the querent's figure," : F(Fs) + ", the figure of the thing demanded,")
@@ -935,7 +981,7 @@ function parseEntry(raw){
 const RING_POS = {12:[-30,146],1:[-30,286],2:[-30,426],11:[140,-22],10:[280,-22],9:[420,-22],
   8:[590,146],7:[590,286],6:[590,426],3:[140,594],4:[280,594],5:[420,594]};
 
-function chartSVG(houses){
+function chartSVG(houses, res){
   const S = 560, P = (u,v) => [u*S, v*S], ring = signRing(houses);
   const cen = h => P(REGIONS[h].glyph[0], REGIONS[h].glyph[1]);
   let s = '<svg viewBox="-52 -50 '+(S+104)+' '+(S+100)+'" class="chart" role="img" aria-label="Geomantic house chart">';
@@ -947,15 +993,7 @@ function chartSVG(houses){
        + REGIONS[h].poly.map(p => P(p[0],p[1]).join(",")).join(" ")
        + '" style="fill:'+EL[f.el].c+'"/>';
   }
-  if (state.selected){
-    const A = aspectsOf(state.selected);
-    for (const kind in A) A[kind].forEach(t => {
-      const a = cen(state.selected), b = cen(t);
-      const dash = kind==="Opposition" ? "none" : kind==="Square" ? "5 4" : "2 5";
-      s += '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="'+ASPECT_TONE[kind]
-         + '" stroke-width="1.4" stroke-opacity="0.8" stroke-dasharray="'+dash+'"/>';
-    });
-  }
+  s += channelLineSVG(channelLines(houses, res, state.selected), cen);
   s += '<rect x="0" y="0" width="'+S+'" height="'+S+'" fill="none" stroke="var(--rule)" stroke-width="2"/>';
   [[[0,0],[1,1]],[[1,0],[0,1]],[[.5,0],[1,.5]],[[1,.5],[.5,1]],[[.5,1],[0,.5]],[[0,.5],[.5,0]]].forEach(seg => {
     const a = P(seg[0][0],seg[0][1]), b = P(seg[1][0],seg[1][1]);
@@ -1085,7 +1123,7 @@ function wheelName(x, y, name){
        + '</text>';
 }
 
-function wheelSVG(houses){
+function wheelSVG(houses, res){
   const ring = signRing(houses);
   let s = '<svg viewBox="0 0 620 620" class="chart" role="img" aria-label="Geomantic house wheel">';
 
@@ -1094,15 +1132,8 @@ function wheelSVG(houses){
     s += '<path class="region'+(state.selected===h?" sel":"")+(houses.sig===h?" sig":"")+'" data-h="'+h+'" d="'
        + annulus(W.rHub, W.rSign, a, a+30) + '" style="fill:'+EL[f.el].c+'"/>';
   }
-  if (state.selected){
-    const A = aspectsOf(state.selected), p1 = pol(W.rFig, houseMid(state.selected));
-    for (const kind in A) A[kind].forEach(t => {
-      const p2 = pol(W.rFig, houseMid(t));
-      const dash = kind==="Opposition" ? "none" : kind==="Square" ? "5 4" : "2 5";
-      s += '<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="'+ASPECT_TONE[kind]
-         + '" stroke-width="1.4" stroke-opacity="0.8" stroke-dasharray="'+dash+'"/>';
-    });
-  }
+  s += channelLineSVG(channelLines(houses, res, state.selected),
+                      h => pol(W.rFig, houseMid(h)));
   [W.rOut, W.rSign, W.rHub].forEach((r,i) =>
     s += '<circle cx="'+W.cx+'" cy="'+W.cy+'" r="'+r+'" fill="none" stroke="var(--rule)" stroke-width="'+(i?1.2:2)+'"/>');
   for (let h = 1; h <= 12; h++){
@@ -1252,6 +1283,19 @@ function relationTag(res, from, to){
   if (isAdjacent(from, to)) return "next door";
   const A = aspectFrom(from, to);
   return A ? (A.dir ? A.dir + " " : "") + A.kind.toLowerCase() : "no relation";
+}
+
+/* Named only for the kinds of line actually on the chart, so the key never
+   promises a channel the cast does not have. */
+function chanLegendHTML(houses, res){
+  const L = channelLines(houses, res, state.selected);
+  if (!L.length) return "";
+  const kinds = ["carry","deny","pass"].filter(k => L.some(l => l.kind === k));
+  return '<div class="legend chankey">' + kinds.map(k =>
+      '<span class="lg"><i class="lgline" style="border-top-color:' + CHANNEL[k].stroke
+      + ';border-top-style:' + (CHANNEL[k].dash === "none" ? "solid" : "dashed")
+      + '"></i>' + CHANNEL[k].label + '</span>').join("")
+    + '</div>';
 }
 
 /* Under Greer's rules it is the neighbouring houses that carry four of the five
@@ -1456,10 +1500,12 @@ function render(){
         '<button class="vlink'+(state.view===v[0]?" on":"")+'" data-v="'+v[0]+'">'+v[1]+'</button>').join("")
     + '</div></div>'
     + (state.view === "shield" ? shieldSVG(sh, houses)
-       : state.view === "wheel" ? wheelSVG(houses) : chartSVG(houses))
+       : state.view === "wheel" ? wheelSVG(houses, perf) : chartSVG(houses, perf))
     + '<div class="legend">' + Object.keys(EL).map(e =>
         '<span class="lg"><i style="background:'+EL[e].c+'"></i>'+e+' · '+tally[e]+'</span>').join("")
-    + '</div></section><section class="side">' + perfectionCardHTML(perf, sh.Judge) + reading
+    + '</div>'
+    + (state.view === "shield" ? "" : chanLegendHTML(houses, perf))
+    + '</section><section class="side">' + perfectionCardHTML(perf, sh.Judge) + reading
     + '<div class="verdict"><div class="vhead"><span class="eyebrow">Judge</span>'
     + '<span class="vname" style="color:'+EL[J.el].c+'">'+J.name+'</span></div>'
     + '<div class="vbody">'+tinted(J.key,1.7)+'<div><p class="vread">'+J.reading+'</p>'
