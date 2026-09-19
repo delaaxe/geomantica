@@ -230,8 +230,6 @@ body{
 .chanrow.dead .chank{color:var(--err);}
 .chanrow.dead span:last-child{color:var(--dim);}
 .chanempty{margin:8px 0 0;color:var(--dim);font-size:13.5px;font-style:italic;line-height:1.45;}
-.chanfix{margin:11px 0 0;padding-top:9px;border-top:1px dotted var(--rule);color:var(--dim);
-  font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:1.6;letter-spacing:.03em;}
 /* perfection stands above the reading: it is the one verdict the chart gives
    on whether the matter comes to pass at all */
 .perf{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:16px;}
@@ -686,7 +684,7 @@ function perfectionOf(houses, q, s){
     const tag = from + ":" + at + ":" + A.kind;
     if (seen[tag]) return;
     seen[tag] = 1;
-    if (A.good) fav.push({phrase:phrase, dir:A.dir, at:at, from:from});
+    if (A.good) fav.push({phrase:phrase, dir:A.dir, kind:A.kind, at:at, from:from});
     else hard.push({kind:A.kind, house:at, text:phrase});
   };
   const passPhrase = (who, at, from, A) =>
@@ -706,7 +704,7 @@ function perfectionOf(houses, q, s){
   if (fav.length){
     const dirs = ["dexter","sinister"].filter(d => fav.some(x => x.dir === d));
     modes.push({mode:"Favourable aspect", dir:dirs[0] || "", dirs:dirs,
-      where:fav.map(x => x.at),
+      where:fav.map(x => x.at), legs:fav,
       text:fav.map(x => x.phrase).join(" ")
         + " Perfection by aspect is success by indirect means"
         + (dirs.indexOf("dexter") > -1
@@ -1185,8 +1183,9 @@ function exportText(sh, houses, tally){
       + pad(ring ? ring[h][0] : "-",13) + pad("("+f.el+", "+f.planet+"; "+f.nature+")",34)
       + pad(dignityOf(f,h) ? "[" + dignityOf(f,h).slice(0,3) + "]" : "",6) + m.title + " — " + m.keys);
   }
+  const perf = perfectionOf(houses, 1, sig);
   if (sig){
-    const f = F(houses[sig]), m = HOUSES[sig], A = aspectsOf(sig), dg = dignityOf(f, sig);
+    const f = F(houses[sig]), m = HOUSES[sig], dg = dignityOf(f, sig);
     L.push("");
     L.push("SIGNIFICATOR  house " + sig + " · " + ALLOTMENT.map[sig]
       + " — " + m.title + " (" + m.keys + ")");
@@ -1198,21 +1197,15 @@ function exportText(sh, houses, tally){
       + (dg ? f.name + " is " + DIG_WORD[dg] + "." : f.name + " has no accidental dignity here."));
     L.push("  " + pad("GD generally",16) + GD[f.name][0]);
     L.push("  " + pad("GD in the " + ord(sig),16) + GD[f.name][sig]);
-    /* the aspect geometry is identical in every chart, so it is given once at the
-       foot as fixed; the lines above it are only the houses a figure travels to */
+    /* only the houses a figure actually travels to: the aspect geometry itself
+       is the same in every chart and says nothing about this one */
     const repeats = ALL_HOUSES.filter(t => t !== sig && houses[t] === houses[sig]);
     if (repeats.length) L.push("  " + pad("Passes to",16) + f.name + " stands again in "
-      + repeats.map(t => "house " + t + " ("
-          + (isAdjacent(t,sig) ? "next door" : aspectKindBetween(sig,t)
-              ? aspectKindBetween(sig,t).toLowerCase() : "no relation") + ")").join(", "));
+      + repeats.map(t => "house " + t + " (" + relationTag(perf, sig, t) + ")").join(", "));
     else L.push("  " + pad("Passes to",16) + f.name + " stands in no other house");
     L.push("  " + pad("Next door",16) + [norm(sig-1), norm(sig+1)]
       .map(t => "house " + t + " " + F(houses[t]).name).join(" \u00b7 ")
       + "   (four of the five modes are read from neighbouring houses)");
-    L.push("  " + pad("Aspects",16) + Object.keys(A).map(k =>
-      k.toLowerCase() + " " + A[k].join(", ")).join(" \u00b7 ")
-      + "   (fixed in every chart; never read between the two houses of the question,");
-    L.push("  " + pad("",16) + " and counting only once a significator has passed elsewhere)");
     if (sig !== 1) L.push("  " + pad("The querent",16) + "house 1 " + F(houses[1]).name
       + " (" + F(houses[1]).el + ", " + F(houses[1]).planet + ")"
       + (houses[1] === houses[sig]
@@ -1225,7 +1218,6 @@ function exportText(sh, houses, tally){
       : "Judge the question from this house, the first house for the querent, the Judge over both.");
   }
   L.push("");
-  const perf = perfectionOf(houses, 1, sig);
   if (!perf.testable){
     L.push("PERFECTION  not testable — no significator chosen, so there is no second pole");
     L.push("  Choose the house of the thing demanded and the four modes are tested against house 1.");
@@ -1250,12 +1242,24 @@ function exportText(sh, houses, tally){
   return L.join("\n");
 }
 
+/* How one house stands to another that holds the same figure. Between the two
+   houses of the question that is occupation, and never an aspect: the aspect
+   there is the same in every chart and the rules forbid reading it. */
+function relationTag(res, from, to){
+  if (res && res.testable
+      && ((from === res.q && to === res.s) || (from === res.s && to === res.q)))
+    return "occupation";
+  if (isAdjacent(from, to)) return "next door";
+  const A = aspectFrom(from, to);
+  return A ? (A.dir ? A.dir + " " : "") + A.kind.toLowerCase() : "no relation";
+}
+
 /* Under Greer's rules it is the neighbouring houses that carry four of the five
    modes, so they lead here. A figure "passes" by standing again somewhere else,
    and that is the only chart-dependent fact in the panel; the aspect table is
    the same in every chart, so it is kept at the foot and marked as fixed. */
 function channelsHTML(houses, h, res){
-  const here = houses[h], nb = [norm(h-1), norm(h+1)], A = aspectsOf(h);
+  const here = houses[h], nb = [norm(h-1), norm(h+1)];
   const row = (k,v,cls) => '<div class="chanrow'+(cls?" "+cls:"")+'"><span class="chank">'
     + k + '</span><span>' + v + '</span></div>';
   let out = "";
@@ -1266,9 +1270,7 @@ function channelsHTML(houses, h, res){
   const passes = ALL_HOUSES.filter(t => t !== h && houses[t] === here);
   if (passes.length)
     out += row("Passes to", BY_KEY[here].name + " stands again in "
-      + passes.map(t => "house " + t + " ("
-          + (isAdjacent(t,h) ? "next door" : aspectKindBetween(h,t)
-              ? aspectKindBetween(h,t).toLowerCase() : "no relation") + ")").join(", ")
+      + passes.map(t => "house " + t + " (" + relationTag(res, h, t) + ")").join(", ")
       + " \u2014 a figure reaches anything only by passing, so this is what the modes are built from.");
   else
     out += row("Passes nowhere", BY_KEY[here].name + " stands in no other house, so this house can "
@@ -1282,17 +1284,21 @@ function channelsHTML(houses, h, res){
           + " (house " + c.toQ + " by house " + res.q + ", house " + c.toS + " by house " + res.s + ")")
         .join(" \u00b7 ") + " \u2014 standing next to both houses of the question, and so carrying "
         + "between them.");
+    const fa = res.modes.filter(m => m.mode === "Favourable aspect")[0];
+    if (fa)
+      out += row("Carries by aspect", fa.legs.map(x => "house " + x.at + " "
+          + BY_KEY[houses[x.at]].name + " in " + (x.dir ? x.dir + " " : "")
+          + x.kind.toLowerCase() + " to house " + x.from).join(" \u00b7 ")
+        + " \u2014 a figure that has passed reaches the other pole by sextile or trine; "
+        + "dexter, against the order of the houses, is the stronger.");
     if (res.hard.length)
       out += row("Against it", res.hard.map(x => x.kind.toLowerCase() + " at house " + x.house)
         .join(" \u00b7 ") + " \u2014 square and opposition deny a chart, or obstruct one that "
         + "perfects otherwise.", "dead");
   }
 
-  return '<div class="asp"><span class="eyebrow">Channels from house '+h+'</span>' + out
-    + '<p class="chanfix">Aspects, fixed for every chart \u00b7 '
-    + Object.keys(A).map(k => k.toLowerCase() + " " + A[k].join(", ")).join(" \u00b7 ")
-    + ' \u2014 never read between the two houses of the question, and counting only once a '
-    + 'significator has passed.</p></div>';
+  return '<div class="asp"><span class="eyebrow">Channels from house '+h+'</span>'
+    + out + '</div>';
 }
 
 function perfectionCardHTML(res, judgeKey){
