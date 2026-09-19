@@ -251,6 +251,8 @@ body{
 .pverdict strong{font-weight:600;}
 .pyes strong{color:var(--citrine);}
 .pno strong{color:var(--err);}
+.pterm{margin:7px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  letter-spacing:.04em;line-height:1.5;color:var(--dim);}
 .pmore{margin-top:11px;font-size:13px;}
 /* the explanation slides in over the chart rather than pushing the verdict
    down the page: it is the long form of one sentence, wanted only on asking */
@@ -656,30 +658,53 @@ function perfectionOf(houses, q, s){
           direct:aspectKindBetween(q,s), denied:modes.length === 0};
 }
 
-/* The one line a reader wants first: is the answer yes or no. Perfection
-   decides whether the matter comes to pass at all; the Judge decides whether
-   the yes is worth having, and only shifts the wording, never the verdict. */
-const NATURE_SCORE = {"very good":2, "good":1, "good, unstable":1, "neutral":0,
-  "mixed":0, "mobile":0, "ill":-1, "very ill":-2};
-const ROUTE = {
-  Occupation:"the matter is already as good as done",
-  Mutation:"it comes about by a road nobody is watching",
-  Translation:"it comes about through a third party"
-};
+/* The one line a reader wants first: does the thing happen, and is it good.
+   These are two separate questions and the tradition keeps them apart, so the
+   verdict does too.
+
+   Perfection answers the first, and it is a plain yes or no \u2014 a matter either
+   perfects or is denied. It claims nothing about likelihood, so the verdict is
+   never hedged into a "probably": hedging it would state a confidence the
+   method does not have.
+
+   The Judge answers the second, on the five-step scale the Golden Dawn tables
+   in this file already speak throughout \u2014 very good, good, indifferent (their
+   "medium"), evil, very evil. That is where all the qualification belongs, and
+   it is what turns a bare yes into a yes worth having or not.
+
+   For a question that is not yes-or-no, perfection reads as the matter coming
+   to a head rather than as assent, and the Judge carries the substance of the
+   answer; the drawer says so. */
+const QUALITY = {"very good":"very good", "good":"good", "good, unstable":"good",
+  "neutral":"indifferent", "mixed":"indifferent", "mobile":"indifferent",
+  "ill":"evil", "very ill":"very evil"};
+const QUALITY_RANK = {"very good":2, "good":1, "indifferent":0, "evil":-1, "very evil":-2};
+/* what the mode adds to the technical line: who acts, or by what road */
+const ROUTE_TAG = {Occupation:"", Mutation:", unlooked for", Translation:", through a third party"};
+
 function verdictOf(res, judgeKey){
   if (!res.testable) return null;
-  const n = NATURE_SCORE[BY_KEY[judgeKey].nature] || 0;
-  if (res.denied) return {yes:false,
-    word:n >= 1 ? "Mostly no" : "No",
-    clause:"nothing carries the matter from the querent to the thing asked about"};
-  const top = res.modes[0];
-  return {yes:true,
-    word:n >= 1 ? "Yes" : n === 0 ? "Mostly yes" : "Yes, but badly",
-    clause:top.mode === "Conjunction"
-      ? (top.side === "querent"
-          ? "it comes about, but only if the querent goes after it"
-          : "it comes about, and the other side is what brings it")
-      : ROUTE[top.mode]};
+  const J = BY_KEY[judgeKey], quality = QUALITY[J.nature] || "indifferent";
+  const r = QUALITY_RANK[quality], yes = !res.denied;
+  const tail = yes
+    ? (r === 2 ? ", and it goes very well"
+     : r === 1 ? ", and it goes well"
+     : r === 0 ? ", though the Judge is indifferent"
+     : r === -1 ? ", but it goes badly"
+     : ", but it goes very badly")
+    : (r >= 1 ? ", though nothing is harmed by it"
+     : r === 0 ? ""
+     : ", and it goes badly besides");
+  let route = "Denied";
+  if (yes){
+    const top = res.modes[0];
+    route = "Perfects by " + top.mode.toLowerCase()
+      + (top.mode === "Conjunction"
+          ? (top.side === "querent" ? ", the querent acting" : ", the other side acting")
+          : ROUTE_TAG[top.mode]);
+  }
+  return {yes:yes, quality:quality, word:yes ? "Yes" : "No", tail:tail,
+          technical:route + " \u00b7 Judge " + J.name + ", " + quality};
 }
 
 function perfectionSentences(res){
@@ -1136,7 +1161,7 @@ function exportText(sh, houses, tally){
   } else {
     const vd = verdictOf(perf, sh.Judge);
     L.push("PERFECTION  house 1, the querent — house " + sig + ", the thing demanded");
-    L.push("  " + vd.word.toUpperCase() + " — " + vd.clause + ".");
+    L.push("  " + vd.word.toUpperCase() + vd.tail + ".   (" + vd.technical + ")");
     L.push("  Tested by aspect between the houses. Schools that test conjunction and mutation by");
     L.push("  adjacency of houses instead will read those two differently.");
     perfectionSentences(perf).forEach(t => L.push("  " + t));
@@ -1215,8 +1240,9 @@ function perfectionCardHTML(res, judgeKey){
   const v = verdictOf(res, judgeKey);
   return '<div class="perf ' + (v.yes ? "hit" : "denied") + '">'
     + '<span class="eyebrow">Perfection \u00b7 house ' + res.q + ' and house ' + res.s + '</span>'
-    + '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
-    + v.clause + '.</p>'
+    + '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong>'
+    + v.tail + '.</p>'
+    + '<p class="pterm">' + v.technical + '</p>'
     + '<button type="button" class="linkish pmore" data-explain="1">Explain more</button></div>';
 }
 
@@ -1229,14 +1255,19 @@ function perfectionDetailHTML(res, judgeKey){
       + 'not come to pass of itself \u2014 it fails, or it is let go.</p></div>'
     : res.modes.map(m => '<div class="pmode"><span class="pk">' + m.mode + '</span>'
         + '<p class="ptext">' + m.text + '</p></div>').join("");
-  return '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
-    + v.clause + '.</p>'
+  return '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong>'
+    + v.tail + '.</p>'
+    + '<p class="pterm">' + v.technical + '</p>'
+    + '<p class="pdirect">Perfection answers whether the matter comes to pass, and answers it '
+    + 'plainly: it either perfects or it is denied. The Judge, ' + BY_KEY[judgeKey].name + ', is '
+    + v.quality + ' on the old five-step scale \u2014 very good, good, indifferent, evil, very evil '
+    + '\u2014 and that is what says whether the answer is worth having. Where the question was not '
+    + 'a yes-or-no one, read the perfection as the matter coming to a head rather than as assent, '
+    + 'and take the Judge for the substance of the answer.</p>'
     + '<p class="pdirect">' + (res.direct
         ? 'House ' + res.q + ' and house ' + res.s + ' stand in ' + res.direct.toLowerCase() + '.'
         : 'House ' + res.q + ' and house ' + res.s + ' hold no aspect to one another \u2014 nothing '
-          + 'passes between them directly.')
-    + ' The Judge is ' + BY_KEY[judgeKey].name + ', ' + BY_KEY[judgeKey].nature
-    + ', which is what turns the verdict above from a bare yes or no.</p>'
+          + 'passes between them directly.') + '</p>'
     + body
     + '<p class="pnote">Tested by aspect between the houses: occupation by one figure standing in '
     + 'both, conjunction by a significator\u2019s own figure reaching the other, mutation by the two '
