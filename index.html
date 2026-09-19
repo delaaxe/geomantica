@@ -236,7 +236,8 @@ body{
    on whether the matter comes to pass at all */
 .perf{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:16px;}
 .perf.denied{border-left:3px solid var(--err);}
-.perf.hit{border-left:3px solid var(--citrine);}
+.perf.perfects{border-left:3px solid var(--citrine);}
+.perf.undecided{border-left:3px solid var(--dim);}
 .pmode{margin-top:13px;padding-top:11px;border-top:1px solid var(--rule);}
 .pmode:first-of-type{margin-top:10px;padding-top:0;border-top:0;}
 .pk{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.13em;
@@ -249,8 +250,9 @@ body{
 .pnone{margin:8px 0 0;color:var(--dim);font-size:14px;line-height:1.5;}
 .pverdict{margin:11px 0 0;font-size:17px;line-height:1.45;}
 .pverdict strong{font-weight:600;}
-.pyes strong{color:var(--citrine);}
-.pno strong{color:var(--err);}
+.pperfects strong{color:var(--citrine);}
+.pdenied strong{color:var(--err);}
+.pundecided strong{color:var(--dim);}
 .pterm{margin:7px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   letter-spacing:.04em;line-height:1.5;color:var(--dim);}
 .pmore{margin-top:11px;font-size:13px;}
@@ -545,96 +547,106 @@ const aspectsOf = h => ({
 });
 function ord(n){ const s=["th","st","nd","rd"], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
 
-/* ── perfection ───────────────────────────────────────
-   Whether the matter comes to pass, and by what road. The aspect geometry is
-   the same in every chart ever cast — house 1 always trines 5 and 9, and never
-   touches 2, 6, 8 or 12 — so it decides nothing on its own. It is only the
-   wiring. What varies from cast to cast is which figures fall in the houses it
-   connects, and the four modes below look at nothing else.
+/* The Judge's quality, on the five-step scale the Golden Dawn tables in this
+   file speak throughout: very good, good, indifferent (their "medium"), evil,
+   very evil. Perfection says whether a thing happens; this says whether it is
+   worth having. The two are kept apart, as the tradition keeps them. */
+const QUALITY = {"very good":"very good", "good":"good", "good, unstable":"good",
+  "neutral":"indifferent", "mixed":"indifferent", "mobile":"indifferent",
+  "ill":"evil", "very ill":"very evil"};
+const QUALITY_RANK = {"very good":2, "good":1, "indifferent":0, "evil":-1, "very evil":-2};
 
-   Tested here by aspect between houses, which is the relation the rest of this
-   chart already uses. Schools that test conjunction and mutation by simple
-   adjacency of houses will read those two differently; the rule applied is
-   named in the panel so a reader of another school can see what was done. */
+/* ── perfection ───────────────────────────────────────────────
+   Whether the matter comes to pass, after Greer, The Art and Practice of
+   Geomancy, chapter six. Four of the five modes turn on houses being NEXT TO
+   one another, not on aspect: a significator "passes" when its figure turns up
+   again in some other house, and what matters is where that house sits.
+
+   Aspect is a mode in its own right, and a restricted one. Greer's rule, and
+   the reason for it: the aspects between any two houses are the same in every
+   chart ever cast — house 1 always trines 5 and 9 and always squares 4 and 10 —
+   so reading the aspect between the querent's house and the quesited's would
+   make every question about children favourable and every question about
+   property unfavourable, whatever fell. So that aspect is never read. An aspect
+   counts only once a significator has passed to some other house.
+
+   Square and opposition do not perfect a chart, they deny it. Where a chart
+   perfects by some other mode they are difficulties to be overcome, and the
+   houses they fall in say where the trouble comes from.
+
+   Company of houses, Greer's sixth mode, is not implemented: it doubles each
+   significator with the figure in its paired house and every other mode then
+   runs twice. */
 const ALL_HOUSES = [1,2,3,4,5,6,7,8,9,10,11,12];
-function aspectKindBetween(a,b){
-  const A = aspectsOf(a);
-  for (const k in A) if (A[k].indexOf(b) > -1) return k;
-  return null;
+const isAdjacent = (a,b) => a !== b && (norm(a+1) === b || norm(a-1) === b);
+
+/* Greer's Table 6-1. Dexter runs against the numbering and is the stronger;
+   sinister runs with it. Opposition is neither. */
+const ASPECT_STEP = {2:["Sextile","sinister"], 3:["Square","sinister"], 4:["Trine","sinister"],
+                     6:["Opposition",""], 8:["Trine","dexter"], 9:["Square","dexter"],
+                     10:["Sextile","dexter"]};
+const FAVOURABLE = {Sextile:1, Trine:1};
+/* how house y stands to house x */
+function aspectFrom(x, y){
+  const step = ASPECT_STEP[(((y - x) % 12) + 12) % 12];
+  return step ? {kind:step[0], dir:step[1], good:!!FAVOURABLE[step[0]]} : null;
 }
-const aspectedBy   = h => ALL_HOUSES.filter(t => t !== h && aspectKindBetween(h,t));
-const unaspectedBy = h => ALL_HOUSES.filter(t => t !== h && !aspectKindBetween(h,t));
-const MODE_RANK = {Occupation:0, Conjunction:1, Mutation:2, Translation:3};
+function aspectKindBetween(a,b){ const A = aspectFrom(a,b); return A && A.kind; }
+
+const MODE_RANK = {Occupation:0, Conjunction:1, Mutation:2, Translation:3, "Favourable aspect":4};
 
 function perfectionOf(houses, q, s){
   if (!s || s === q) return {testable:false, q:q, s:s};
   const F = k => BY_KEY[k].name, Fq = houses[q], Fs = houses[s];
-  const outside = ALL_HOUSES.filter(h => h !== q && h !== s);
   const lower = k => k.toLowerCase();
-  const modes = [];
-  /* figures repeat across the chart, so a mode is often satisfied several times
-     over. Each is gathered into one reading naming every house involved, rather
-     than one reading for every pair of houses that happens to satisfy it. */
   const list = a => a.length < 2 ? a.join("")
     : a.slice(0,-1).join(", ") + " and " + a[a.length-1];
-  const at = (h,to) => "house " + h + " (" + lower(aspectKindBetween(h,to)) + " to house " + to + ")";
+  /* a significator "passes" when its figure stands again somewhere that is
+     neither of the two houses of the question */
+  const outside = ALL_HOUSES.filter(h => h !== q && h !== s);
+  const passedQ = outside.filter(h => houses[h] === Fq);
+  const passedS = outside.filter(h => houses[h] === Fs);
+  const modes = [], hard = [];
 
-  if (Fq === Fs) modes.push({mode:"Occupation",
+  if (Fq === Fs) modes.push({mode:"Occupation", where:[q,s],
     text:"One and the same figure, " + F(Fq) + ", stands in house " + q + " and house " + s
-       + ". The strongest and swiftest of the four: the matter is already settled in "
-       + "substance and completes of itself, with little left for anyone to do."});
+      + ". The strongest of the modes: to a question that can be answered yes or no, occupation "
+      + "is a plain yes. " + F(Fq) + " being " + BY_KEY[Fq].nature + ", the querent "
+      + (QUALITY_RANK[QUALITY[BY_KEY[Fq].nature]] >= 1
+          ? "should be glad of the outcome."
+          : QUALITY_RANK[QUALITY[BY_KEY[Fq].nature]] <= -1
+            ? "will get what was asked for, and may regret it."
+            : "will get what was asked for, for what it turns out to be worth.")});
 
-  /* Conjunction — a significator's own figure standing where it can reach the
-     other pole. Which of the two moved says who does the work. Occupation
-     already says the two figures are one, so it is not tested under it. */
-  if (Fq !== Fs){
-    const qside = outside.filter(h => houses[h] === Fq && aspectKindBetween(h, s));
-    if (qside.length) modes.push({mode:"Conjunction", side:"querent",
-      text:F(Fq) + ", the querent's own figure, stands again in "
-        + list(qside.map(h => at(h,s))) + ". The matter perfects — but by the querent "
-        + "moving toward it, not by its coming to them."});
-    const sside = outside.filter(h => houses[h] === Fs && aspectKindBetween(h, q));
-    if (sside.length) modes.push({mode:"Conjunction", side:"quesited",
-      text:F(Fs) + ", the figure of the thing demanded, stands again in "
-        + list(sside.map(h => at(h,q))) + ". The matter perfects, and it is the other side "
-        + "that moves: it comes to the querent."});
-  }
+  /* Conjunction — one significator passing to a house next to the other's */
+  const conjQ = passedQ.filter(h => isAdjacent(h, s));
+  if (conjQ.length) modes.push({mode:"Conjunction", side:"querent", where:conjQ.concat([s]),
+    text:F(Fq) + ", the querent's figure, passes to " + list(conjQ.map(h => "house " + h))
+      + ", next to house " + s + ". The querent gets what was wanted, but must work for it: "
+      + "the first move is theirs to make."});
+  const conjS = passedS.filter(h => isAdjacent(h, q));
+  if (conjS.length) modes.push({mode:"Conjunction", side:"quesited", where:conjS.concat([q]),
+    text:F(Fs) + ", the figure of the thing demanded, passes to " + list(conjS.map(h => "house " + h))
+      + ", next to house " + q + ". The matter comes to the querent, and no effort of theirs "
+      + "is needed to bring it."});
 
-  /* Mutation — both significator figures turning up a second time, in two
-     houses that aspect each other and are neither of their own. The two never
-     share a house; it is the second copies that stand in aspect, which is why
-     it reads as the road nobody is watching. */
-  if (Fq !== Fs){
-    const pairs = [];
-    outside.forEach(a => { if (houses[a] !== Fq) return;
-      outside.forEach(b => {
-        if (b === a || houses[b] !== Fs) return;
-        const k = aspectKindBetween(a,b);
-        if (k) pairs.push({a:a, b:b, k:k});
-      });
-    });
-    if (pairs.length) modes.push({mode:"Mutation",
-      text:"Both figures turn up a second time, outside their own houses: "
-        + list(pairs.map(x => F(Fq) + " (the querent's) in house " + x.a + " and " + F(Fs)
-            + " (the thing demanded's) in house " + x.b + ", which hold a " + lower(x.k)))
-        + ". The two never share a house — it is these second copies that stand in aspect, and "
-        + "that is the whole of the link. The matter perfects, but by a road nobody is watching: "
-        + "read " + list(pairs.map(x => "houses " + x.a + " and " + x.b)) + " for where it comes from."});
-  }
+  /* Mutation — both passing, into houses that lie side by side */
+  const mut = [];
+  passedQ.forEach(a => passedS.forEach(b => { if (isAdjacent(a,b)) mut.push([a,b]); }));
+  if (mut.length) modes.push({mode:"Mutation", where:mut[0],
+    text:"Both figures pass out of their own houses into neighbouring ones — "
+      + list(mut.map(x => F(Fq) + " to house " + x[0] + " and " + F(Fs) + " to house " + x[1]))
+      + ". The two never share a house; it is where they land that joins them. The goal must be "
+      + "sought along a path nobody expects, and house " + mut[0][1] + ", where the figure of the "
+      + "thing demanded went, is the guide to where that path lies."});
 
-  /* Translation — a third figure standing at both ends and carrying between
-     them. The translator is the figure, not the pairing, so each figure that
-     does it is counted once; and where several carry, they are read together,
-     since one paragraph apiece says the same thing three times over. A
-     significator carrying itself is conjunction, so both are excluded. */
+  /* Translation — a third figure next to both houses of the question */
   const carriers = [], done = {};
   outside.forEach(a => {
     const Z = houses[a];
     if (Z === Fq || Z === Fs || done[Z]) return;
     const held = outside.filter(h => houses[h] === Z);
-    const toQ = held.filter(h => aspectKindBetween(h, q));
-    const toS = held.filter(h => aspectKindBetween(h, s));
-    /* it must stand at both ends at once, so the two ends cannot be one house */
+    const toQ = held.filter(h => isAdjacent(h, q)), toS = held.filter(h => isAdjacent(h, s));
     let pair = null;
     toQ.forEach(x => toS.forEach(y => { if (x !== y && !pair) pair = [x,y]; }));
     if (!pair) return;
@@ -642,93 +654,136 @@ function perfectionOf(houses, q, s){
     carriers.push({figure:Z, toQ:pair[0], toS:pair[1]});
   });
   if (carriers.length){
-    const one = carriers.length === 1, c0 = carriers[0];
-    const each = c => F(c.figure) + " (house " + c.toQ + " to house " + q
-      + ", house " + c.toS + " to house " + s + ")";
+    const c0 = carriers[0], n = BY_KEY[c0.figure];
+    const weak = n.name === "Albus" || n.name === "Populus";
     modes.push({mode:"Translation", carriers:carriers,
-      text:(one
-        ? F(c0.figure) + " stands in house " + c0.toQ + ", in " + lower(aspectKindBetween(c0.toQ, q))
-          + " to the querent, and again in house " + c0.toS + ", in "
-          + lower(aspectKindBetween(c0.toS, s)) + " to the thing demanded, carrying virtue from "
-          + "the one to the other."
-        : carriers.length + " figures stand at both ends and carry between the two houses — "
-          + list(carriers.map(each)) + ".")
-      + " The matter perfects through a third party — read those houses for who that is"
-      + (one ? "." : ", and the strongest-natured of them for how it goes.")});
+      where:carriers.reduce((o,c) => o.concat([c.toQ, c.toS]), []),
+      text:(carriers.length === 1
+        ? F(c0.figure) + ", neither significator, stands in house " + c0.toQ + " next to house "
+          + q + " and in house " + c0.toS + " next to house " + s + ", and carries between them."
+        : carriers.length + " figures outside the question carry between the two houses — "
+          + list(carriers.map(c => F(c.figure) + " (house " + c.toQ + " next to house " + q
+              + ", house " + c.toS + " next to house " + s + ")")) + ".")
+      + " Something outside the matter brings about what the querent cannot manage alone; read "
+      + "those houses for who or what it is. "
+      + (weak ? F(c0.figure) + " is a weak figure, so look for it to come about by unlikely means, "
+                + "or by what will look like coincidence."
+         : QUALITY_RANK[QUALITY[n.nature]] <= -1
+           ? F(c0.figure) + " being " + n.nature + ", it translates just as surely, but there will "
+             + "be some unpleasantness on the way."
+           : F(c0.figure) + " being " + n.nature + ", the help is of a kind worth having.")});
   }
 
+  /* Aspect — only once a significator has passed, and never between the two
+     houses of the question. Favourable perfects; square and opposition deny. */
+  const seen = {};
+  const weigh = (from, at, who) => {
+    const A = aspectFrom(from, at);
+    if (!A) return;
+    const tag = from + ":" + at + ":" + A.kind;
+    if (seen[tag]) return;
+    seen[tag] = 1;
+    const phrase = (who === "querent" ? F(Fq) + ", the querent's figure," : F(Fs) + ", the figure of the thing demanded,")
+      + " passes to house " + at + ", which stands in " + (A.dir ? A.dir + " " : "")
+      + lower(A.kind) + " to house " + from + ".";
+    if (A.good) modes.push({mode:"Favourable aspect", where:[at, from], dir:A.dir,
+      text:phrase + " Perfection by aspect is success by indirect means"
+        + (A.dir === "dexter"
+            ? ", and a dexter aspect, running against the order of the houses, is the stronger of the two."
+            : A.dir === "sinister"
+              ? "; a sinister aspect, running with the order of the houses, is the weaker of the two."
+              : ".")});
+    else hard.push({kind:A.kind, house:at, text:phrase});
+  };
+  passedQ.forEach(a => weigh(s, a, "querent"));
+  passedS.forEach(b => weigh(q, b, "quesited"));
+  passedQ.forEach(a => passedS.forEach(b => {
+    const A = aspectFrom(a, b);
+    if (!A) return;
+    const tag = a + ":" + b + ":" + A.kind;
+    if (seen[tag]) return;
+    seen[tag] = 1;
+    const phrase = "Both figures pass: " + F(Fq) + " to house " + a + " and " + F(Fs)
+      + " to house " + b + ", which stand in " + (A.dir ? A.dir + " " : "") + lower(A.kind) + ".";
+    if (A.good) modes.push({mode:"Favourable aspect", where:[a,b], dir:A.dir,
+      text:phrase + " Perfection by aspect is success by indirect means."});
+    else hard.push({kind:A.kind, house:b, text:phrase});
+  }));
+
   modes.sort((a,b) => MODE_RANK[a.mode] - MODE_RANK[b.mode]);
-  return {testable:true, q:q, s:s, modes:modes,
-          direct:aspectKindBetween(q,s), denied:modes.length === 0};
+  /* Greer: where the only perfection is an aspect and unfavourable aspects
+     appear too, the question is undecided and may go either way */
+  const byAspectOnly = modes.length > 0 && modes.every(m => m.mode === "Favourable aspect");
+  return {testable:true, q:q, s:s, modes:modes, hard:hard,
+          denied:modes.length === 0,
+          impedited:modes.length === 0 && hard.length === 0,
+          undecided:byAspectOnly && hard.length > 0};
 }
 
-/* The one line a reader wants first: does the thing happen, and is it good.
-   These are two separate questions and the tradition keeps them apart, so the
-   verdict does too.
-
-   Perfection answers the first, and it is a plain yes or no \u2014 a matter either
-   perfects or is denied. It claims nothing about likelihood, so the verdict is
-   never hedged into a "probably": hedging it would state a confidence the
-   method does not have.
-
-   The Judge answers the second, on the five-step scale the Golden Dawn tables
-   in this file already speak throughout \u2014 very good, good, indifferent (their
-   "medium"), evil, very evil. That is where all the qualification belongs, and
-   it is what turns a bare yes into a yes worth having or not.
-
-   For a question that is not yes-or-no, perfection reads as the matter coming
-   to a head rather than as assent, and the Judge carries the substance of the
-   answer; the drawer says so. */
-const QUALITY = {"very good":"very good", "good":"good", "good, unstable":"good",
-  "neutral":"indifferent", "mixed":"indifferent", "mobile":"indifferent",
-  "ill":"evil", "very ill":"very evil"};
-const QUALITY_RANK = {"very good":2, "good":1, "indifferent":0, "evil":-1, "very evil":-2};
 /* what the mode adds to the technical line: who acts, or by what road */
-const ROUTE_TAG = {Occupation:"", Mutation:", unlooked for", Translation:", through a third party"};
+const ROUTE_TAG = {Occupation:"", Mutation:", by an unexpected path",
+  Translation:", through a third party", "Favourable aspect":", by indirect means"};
 
 function verdictOf(res, judgeKey){
   if (!res.testable) return null;
   const J = BY_KEY[judgeKey], quality = QUALITY[J.nature] || "indifferent";
-  const r = QUALITY_RANK[quality], yes = !res.denied;
-  /* "Perfects" and "Denied" rather than yes and no, and "the matter comes
-     about" rather than "yes": most questions put to a chart are not yes-or-no
-     ones, and a bare Yes answers "how will the move go?" wrongly. These are the
-     tradition's own words and they carry both readings at once. */
-  const tail = yes
-    ? "the matter comes about"
-      + (r === 2 ? ", and it goes very well"
-       : r === 1 ? ", and it goes well"
-       : r === 0 ? ", though the Judge is indifferent"
-       : r === -1 ? ", but it goes badly"
-       : ", but it goes very badly")
-    : "the matter does not come about"
-      + (r >= 1 ? ", though nothing is harmed by it"
-       : r === 0 ? ""
-       : ", and it goes badly besides");
-  let route = "No mode holds";   /* the headline already says Denied */
-  if (yes){
+  const r = QUALITY_RANK[quality];
+  /* Perfects, Denied and Undecided rather than yes and no: most questions put
+     to a chart are not yes-or-no ones, and a bare Yes answers "how will the
+     move go?" wrongly. These are the tradition's own words and carry both. */
+  const state = res.undecided ? "undecided" : res.denied ? "denied" : "perfects";
+  const opening = state === "perfects" ? "the matter comes about"
+    : state === "undecided" ? "the matter may go either way"
+    : "the matter does not come about";
+  const tail = state === "denied"
+    ? (r >= 1 ? ", though nothing is harmed by it" : r === 0 ? "" : ", and it goes badly besides")
+    : (r === 2 ? ", and it goes very well"
+     : r === 1 ? ", and it goes well"
+     : r === 0 ? ", though the Judge is indifferent"
+     : r === -1 ? ", but it goes badly"
+     : ", but it goes very badly");
+  let route;
+  if (state === "denied")
+    route = res.impedited ? "Impedited, nothing connects them"
+      : "Blocked by " + res.hard.map(x => x.kind.toLowerCase()).join(" and ") + " alone";
+  else {
     const top = res.modes[0];
     route = "By " + top.mode.toLowerCase()
       + (top.mode === "Conjunction"
           ? (top.side === "querent" ? ", the querent acting" : ", the other side acting")
-          : ROUTE_TAG[top.mode]);
+          : top.mode === "Favourable aspect" && top.dir
+            ? ", " + top.dir : ROUTE_TAG[top.mode] || "");
+    if (res.hard.length) route += ", against " + res.hard.length + " unfavourable";
   }
-  return {yes:yes, quality:quality, word:yes ? "Perfects" : "Denied", tail:tail,
+  return {yes:state === "perfects", state:state, quality:quality,
+          word:state === "perfects" ? "Perfects" : state === "undecided" ? "Undecided" : "Denied",
+          tail:opening + tail,
           technical:route + " \u00b7 Judge " + J.name + ", " + quality};
 }
 
 function perfectionSentences(res){
   if (!res.testable) return [];
   const L = [];
-  L.push(res.direct
-    ? "House " + res.q + " and house " + res.s + " stand in " + res.direct.toLowerCase() + "."
-    : "House " + res.q + " and house " + res.s + " hold no aspect to one another, so nothing "
-      + "passes between them directly; only occupation, mutation or a translator can carry it.");
-  if (res.denied)
-    L.push("Denied. None of the four modes holds between house " + res.q + " and house " + res.s
-      + ". Nothing carries the matter from the querent to the thing demanded: it does not come "
-      + "to pass of itself — it fails, or it is let go.");
+  /* Greer forbids reading the aspect between the two houses of the question:
+     it is the same in every chart, so it would answer by the house number
+     rather than by the cast. Nothing about houses q and s is said here. */
+  if (res.impedited)
+    L.push("Impedited. Neither figure passes anywhere that reaches the other, and no third "
+      + "figure carries between them. Nothing connects the significators at all, and that "
+      + "answers no.");
+  else if (res.denied)
+    L.push("Denied by aspect. Nothing joins the significators but "
+      + res.hard.map(x => x.kind.toLowerCase()).join(" and ")
+      + ", which deny rather than perfect. The indirect factors are too strong for the "
+      + "querent to overcome.");
   else res.modes.forEach(m => L.push(m.mode + ". " + m.text));
+  if (!res.denied && res.hard.length)
+    L.push("Difficulties. " + res.hard.map(x => x.text).join(" ")
+      + " Square and opposition do not deny a chart that perfects otherwise, but they are "
+      + "obstacles to be got over; those houses say where the trouble comes from.");
+  if (res.undecided)
+    L.push("Undecided. The only perfection here is by aspect, and unfavourable aspects appear "
+      + "as well, so the question may go either way.");
   return L;
 }
 function glyph(fig, size, color){
@@ -1131,27 +1186,18 @@ function exportText(sh, houses, tally){
     /* the aspect geometry is identical in every chart, so it is given once at the
        foot as fixed; the lines above it are only the houses a figure travels to */
     const repeats = ALL_HOUSES.filter(t => t !== sig && houses[t] === houses[sig]);
-    if (repeats.length) L.push("  " + pad("Repeats",16) + f.name + " stands again in "
+    if (repeats.length) L.push("  " + pad("Passes to",16) + f.name + " stands again in "
       + repeats.map(t => "house " + t + " ("
-          + (aspectKindBetween(sig,t) ? aspectKindBetween(sig,t).toLowerCase() : "no aspect") + ")").join(", "));
-    if (sig !== 1){
-      const both = ALL_HOUSES.filter(t => t !== sig && t !== 1
-        && aspectKindBetween(t,sig) && aspectKindBetween(t,1));
-      const tr = perfectionOf(houses, 1, sig).modes.filter(m => m.mode === "Translation");
-      L.push("  " + pad("Translators",16) + (tr.length
-        ? tr[0].carriers.map(c => F(c.figure).name + " (house " + c.toQ + " to house 1, house "
-            + c.toS + " to house " + sig + ")").join(" · ")
-          + "   (one figure at both ends, carrying between the two houses)"
-        : both.length
-          ? "none — " + both.length + " houses aspect both house 1 and house " + sig
-            + " (" + both.join(", ") + "), but no figure stands in two of them"
-          : "none — no house aspects both house 1 and house " + sig));
-    }
-    L.push("  " + pad("Out of reach",16) + "houses " + unaspectedBy(sig).join(", ")
-      + "   (no aspect reaches them from here)");
-    L.push("  " + pad("Fixed geometry",16) + Object.keys(A).map(k =>
-      k.toLowerCase() + " " + A[k].join(", ")).join(" · ")
-      + "   (the same in every chart — it names channels, it judges nothing)");
+          + (isAdjacent(t,sig) ? "next door" : aspectKindBetween(sig,t)
+              ? aspectKindBetween(sig,t).toLowerCase() : "no relation") + ")").join(", "));
+    else L.push("  " + pad("Passes to",16) + f.name + " stands in no other house");
+    L.push("  " + pad("Next door",16) + [norm(sig-1), norm(sig+1)]
+      .map(t => "house " + t + " " + F(houses[t]).name).join(" \u00b7 ")
+      + "   (four of the five modes are read from neighbouring houses)");
+    L.push("  " + pad("Aspects",16) + Object.keys(A).map(k =>
+      k.toLowerCase() + " " + A[k].join(", ")).join(" \u00b7 ")
+      + "   (fixed in every chart; never read between the two houses of the question,");
+    L.push("  " + pad("",16) + " and counting only once a significator has passed elsewhere)");
     if (sig !== 1) L.push("  " + pad("The querent",16) + "house 1 " + F(houses[1]).name
       + " (" + F(houses[1]).el + ", " + F(houses[1]).planet + ")"
       + (houses[1] === houses[sig]
@@ -1185,72 +1231,60 @@ function exportText(sh, houses, tally){
   return L.join("\n");
 }
 
-/* The aspect lines out of a house are the same in every chart, so listing them
-   flat states nothing about this cast. What is worth a row is a house where a
-   figure actually travels — a repetition of this house's own figure, or a house
-   standing where it can reach both poles of the question. The fixed geometry is
-   kept at the foot, named as fixed, so it is still there to consult. */
+/* Under Greer's rules it is the neighbouring houses that carry four of the five
+   modes, so they lead here. A figure "passes" by standing again somewhere else,
+   and that is the only chart-dependent fact in the panel; the aspect table is
+   the same in every chart, so it is kept at the foot and marked as fixed. */
 function channelsHTML(houses, h, res){
-  const here = houses[h], dead = unaspectedBy(h), A = aspectsOf(h);
+  const here = houses[h], nb = [norm(h-1), norm(h+1)], A = aspectsOf(h);
   const row = (k,v,cls) => '<div class="chanrow'+(cls?" "+cls:"")+'"><span class="chank">'
     + k + '</span><span>' + v + '</span></div>';
-  let out = "", live = 0;
+  let out = "";
 
-  const repeats = ALL_HOUSES.filter(t => t !== h && houses[t] === here);
-  if (repeats.length){
-    live++;
-    out += row("Repeats", BY_KEY[here].name + " stands again in "
-      + repeats.map(t => "house " + t + " ("
-          + (aspectKindBetween(h,t) ? aspectKindBetween(h,t).toLowerCase() : "no aspect") + ")").join(", ")
-      + " — the figure of this house is carried there.");
-  }
+  out += row("Next door", nb.map(t => "house " + t + " " + BY_KEY[houses[t]].name).join(" \u00b7 ")
+    + " \u2014 conjunction, mutation and translation are all read from houses lying side by side.");
 
-  /* When this house is one of the two poles of the question: most of the chart
-     aspects both poles — six houses of the twelve, where the poles oppose — so
-     listing them all says no more than the fixed geometry does. Only the figures
-     that actually stand at both ends get a row; the rest is given as a count. */
-  const far = res.testable ? (h === res.q ? res.s : h === res.s ? res.q : 0) : 0;
-  if (far){
-    const both = ALL_HOUSES.filter(t => t !== h && t !== far
-      && aspectKindBetween(t,h) && aspectKindBetween(t,far));
+  const passes = ALL_HOUSES.filter(t => t !== h && houses[t] === here);
+  if (passes.length)
+    out += row("Passes to", BY_KEY[here].name + " stands again in "
+      + passes.map(t => "house " + t + " ("
+          + (isAdjacent(t,h) ? "next door" : aspectKindBetween(h,t)
+              ? aspectKindBetween(h,t).toLowerCase() : "no relation") + ")").join(", ")
+      + " \u2014 a figure reaches anything only by passing, so this is what the modes are built from.");
+  else
+    out += row("Passes nowhere", BY_KEY[here].name + " stands in no other house, so this house can "
+      + "reach the rest of the chart only by what comes to it.", "dead");
+
+  /* when this house is one of the two poles, name what actually carried */
+  if (res.testable && (h === res.q || h === res.s)){
     const tr = res.modes.filter(m => m.mode === "Translation");
-    if (tr.length){ live++;
+    if (tr.length)
       out += row("Translators", tr[0].carriers.map(c => BY_KEY[c.figure].name
-          + " (house " + c.toQ + " to house " + res.q
-          + ", house " + c.toS + " to house " + res.s + ")").join(" · ")
-        + " — one figure standing at both ends, carrying the matter across. Its two "
-        + "houses answer to the two poles, not to this one."); }
-    else if (both.length)
-      out += row("Nothing carried", both.length + " houses aspect both house " + res.q
-        + " and house " + res.s + " — " + both.join(", ") + " — but no figure stands in "
-        + "two of them, so none of them carries anything.", "dead");
-    else out += row("No bridge", "No house aspects both house " + h + " and house " + far
-      + ", so nothing can translate between them.", "dead");
+          + " (house " + c.toQ + " by house " + res.q + ", house " + c.toS + " by house " + res.s + ")")
+        .join(" \u00b7 ") + " \u2014 standing next to both houses of the question, and so carrying "
+        + "between them.");
+    if (res.hard.length)
+      out += row("Against it", res.hard.map(x => x.kind.toLowerCase() + " at house " + x.house)
+        .join(" \u00b7 ") + " \u2014 square and opposition deny a chart, or obstruct one that "
+        + "perfects otherwise.", "dead");
   }
-
-  out += row("Out of reach", "houses " + dead.join(", ")
-    + " — no aspect reaches them from here, so nothing passes directly.", "dead");
-  if (!live) out += '<p class="chanempty">No figure travels along any aspect of this house; '
-    + 'the lines here are empty geometry.</p>';
 
   return '<div class="asp"><span class="eyebrow">Channels from house '+h+'</span>' + out
-    + '<p class="chanfix">Fixed for every chart · '
-    + Object.keys(A).map(k => k.toLowerCase() + " " + A[k].join(", ")).join(" · ")
-    + '</p></div>';
+    + '<p class="chanfix">Aspects, fixed for every chart \u00b7 '
+    + Object.keys(A).map(k => k.toLowerCase() + " " + A[k].join(", ")).join(" \u00b7 ")
+    + ' \u2014 never read between the two houses of the question, and counting only once a '
+    + 'significator has passed.</p></div>';
 }
 
-/* The card carries one sentence — yes or no, and by what road — because that is
-   the whole of what a reader wants on first sight. Everything behind it, the
-   mode by mode reading and the rule it was judged by, waits in the drawer. */
 function perfectionCardHTML(res, judgeKey){
   if (!res.testable)
     return '<div class="perf"><span class="eyebrow">Perfection</span>'
       + '<p class="pnone">Name the house of the thing demanded \u2014 the significator \u2014 and the '
       + 'chart will answer yes or no.</p></div>';
   const v = verdictOf(res, judgeKey);
-  return '<div class="perf ' + (v.yes ? "hit" : "denied") + '">'
+  return '<div class="perf ' + v.state + '">'
     + '<span class="eyebrow">Perfection \u00b7 house ' + res.q + ' and house ' + res.s + '</span>'
-    + '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
+    + '<p class="pverdict p' + v.state + '"><strong>' + v.word + '</strong> \u2014 '
     + v.tail + '.</p>'
     + '<p class="pterm">' + v.technical + '</p>'
     + '<button type="button" class="linkish pmore" data-explain="1">Explain more</button></div>';
@@ -1259,13 +1293,13 @@ function perfectionCardHTML(res, judgeKey){
 function perfectionDetailHTML(res, judgeKey){
   if (!res.testable) return "";
   const v = verdictOf(res, judgeKey);
-  const body = res.denied
-    ? '<div class="pmode"><span class="pk deny">Denied</span><p class="ptext">None of the four '
-      + 'modes holds. Nothing carries the matter from the querent to the thing demanded: it does '
-      + 'not come to pass of itself \u2014 it fails, or it is let go.</p></div>'
-    : res.modes.map(m => '<div class="pmode"><span class="pk">' + m.mode + '</span>'
-        + '<p class="ptext">' + m.text + '</p></div>').join("");
-  return '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
+  const body = perfectionSentences(res).map(t => {
+    const head = t.slice(0, t.indexOf(". "));
+    return '<div class="pmode"><span class="pk'
+      + (/^(Impedited|Denied|Difficulties)/.test(head) ? " deny" : "") + '">' + head + '</span>'
+      + '<p class="ptext">' + t.slice(t.indexOf(". ") + 2) + '</p></div>';
+  }).join("");
+  return '<p class="pverdict p' + v.state + '"><strong>' + v.word + '</strong> \u2014 '
     + v.tail + '.</p>'
     + '<p class="pterm">' + v.technical + '</p>'
     + '<p class="pdirect">Perfection answers whether the matter comes to pass, and answers it '
@@ -1275,15 +1309,18 @@ function perfectionDetailHTML(res, judgeKey){
     + 'said rather than yes and no because most questions put to a chart are not yes-or-no ones: '
     + 'to \u201cwill they call?\u201d a perfection is a yes, and to \u201chow will the move go?\u201d '
     + 'it is the matter reaching its end, with the Judge for the substance of it.</p>'
-    + '<p class="pdirect">' + (res.direct
-        ? 'House ' + res.q + ' and house ' + res.s + ' stand in ' + res.direct.toLowerCase() + '.'
-        : 'House ' + res.q + ' and house ' + res.s + ' hold no aspect to one another \u2014 nothing '
-          + 'passes between them directly.') + '</p>'
+    + '<p class="pdirect">The aspect between house ' + res.q + ' and house ' + res.s
+    + ' is not read, and deliberately so: it is the same in every chart ever cast, so reading it '
+    + 'would answer by the house number rather than by what fell. An aspect counts only once a '
+    + 'significator has passed to some other house.</p>'
     + body
-    + '<p class="pnote">Tested by aspect between the houses: occupation by one figure standing in '
-    + 'both, conjunction by a significator\u2019s own figure reaching the other, mutation by the two '
-    + 'meeting outside their houses, translation by a third figure standing at both ends. Schools '
-    + 'that test by adjacency of houses instead will read conjunction and mutation differently.</p>';
+    + '<p class="pnote">After Greer, <em>The Art and Practice of Geomancy</em>, chapter six. '
+    + 'Occupation is one figure standing in both houses; conjunction, a significator passing to a '
+    + 'house next to the other\u2019s; mutation, both passing to houses that lie side by side; '
+    + 'translation, a third figure standing next to both. Those four turn on houses being '
+    + 'neighbours, not on aspect. Favourable aspect \u2014 sextile or trine \u2014 is a mode of its own '
+    + 'and counts only once a significator has passed elsewhere; square and opposition deny. '
+    + 'Company of houses, Greer\u2019s sixth mode, is not implemented.</p>';
 }
 
 /* the drawer lives outside the re-rendered chart, so opening it animates and a
