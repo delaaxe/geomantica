@@ -724,6 +724,15 @@ function perfectionOf(houses, q, s){
 const ROUTE_TAG = {Occupation:"", Mutation:", by an unexpected path",
   Translation:", through a third party", "Favourable aspect":", by indirect means"};
 
+/* A chart can be blocked by three squares at once, and "square and square and
+   square" says nothing more than "square" does: how many of each is not
+   something the tradition weighs, only which kinds stand against it. Each kind
+   is named once, in a settled order; the drawer lists the houses. */
+function hardKinds(hard){
+  return ["Square","Opposition"].filter(k => hard.some(x => x.kind === k))
+    .map(k => k.toLowerCase()).join(" and ");
+}
+
 function verdictOf(res, judgeKey){
   if (!res.testable) return null;
   const J = BY_KEY[judgeKey], quality = QUALITY[J.nature] || "indifferent";
@@ -741,11 +750,14 @@ function verdictOf(res, judgeKey){
      : r === 1 ? ", and it goes well"
      : r === 0 ? ", though the Judge is indifferent"
      : r === -1 ? ", but it goes badly"
+     /* the last step cannot arise from a Judge: Rubeus is the only very evil
+        figure and its seven points bar it from ever being one. Kept so the
+        scale stays whole, and for figures read outside the Judge's seat. */
      : ", but it goes very badly");
   let route;
   if (state === "denied")
     route = res.impedited ? "Impedited, nothing connects them"
-      : "Blocked by " + res.hard.map(x => x.kind.toLowerCase()).join(" and ") + " alone";
+      : "Blocked by " + hardKinds(res.hard) + " alone";
   else {
     const top = res.modes[0];
     route = "By " + top.mode.toLowerCase()
@@ -753,7 +765,7 @@ function verdictOf(res, judgeKey){
           ? (top.side === "querent" ? ", the querent acting" : ", the other side acting")
           : top.mode === "Favourable aspect" && top.dir
             ? ", " + top.dir : ROUTE_TAG[top.mode] || "");
-    if (res.hard.length) route += ", against " + res.hard.length + " unfavourable";
+    if (res.hard.length) route += ", against " + hardKinds(res.hard);
   }
   return {yes:state === "perfects", state:state, quality:quality,
           word:state === "perfects" ? "Perfects" : state === "undecided" ? "Undecided" : "Denied",
@@ -773,7 +785,7 @@ function perfectionSentences(res){
       + "answers no.");
   else if (res.denied)
     L.push("Denied by aspect. Nothing joins the significators but "
-      + res.hard.map(x => x.kind.toLowerCase()).join(" and ")
+      + hardKinds(res.hard)
       + ", which deny rather than perfect. The indirect factors are too strong for the "
       + "querent to overcome.");
   else res.modes.forEach(m => L.push(m.mode + ". " + m.text));
