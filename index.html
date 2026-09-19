@@ -247,6 +247,35 @@ body{
 .pnote{margin:13px 0 0;padding-top:10px;border-top:1px solid var(--rule);
   color:var(--dim);font-size:12.5px;line-height:1.5;}
 .pnone{margin:8px 0 0;color:var(--dim);font-size:14px;line-height:1.5;}
+.pverdict{margin:11px 0 0;font-size:17px;line-height:1.45;}
+.pverdict strong{font-weight:600;}
+.pyes strong{color:var(--citrine);}
+.pno strong{color:var(--err);}
+.pmore{margin-top:11px;font-size:13px;}
+/* the explanation slides in over the chart rather than pushing the verdict
+   down the page: it is the long form of one sentence, wanted only on asking */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;
+  opacity:0;visibility:hidden;transition:opacity .22s ease,visibility 0s linear .22s;}
+.scrim.open{opacity:1;visibility:visible;transition:opacity .22s ease;}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(440px,92vw);z-index:41;
+  background:var(--panel);border-left:1px solid var(--rule);overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:18px 20px calc(24px + env(safe-area-inset-bottom));
+  padding-top:max(18px,env(safe-area-inset-top));
+  transform:translateX(100%);visibility:hidden;
+  transition:transform .26s cubic-bezier(.22,.61,.36,1),visibility 0s linear .26s;}
+.drawer.open{transform:none;visibility:visible;
+  transition:transform .26s cubic-bezier(.22,.61,.36,1);}
+.drawerhead{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  position:sticky;top:0;z-index:1;background:var(--panel);
+  padding-bottom:11px;margin-bottom:3px;border-bottom:1px solid var(--rule);}
+body.explaining{overflow:hidden;}
+@media (max-width:560px){
+  .drawer{top:auto;bottom:0;right:0;width:100%;height:auto;max-height:86vh;
+    border-left:0;border-top:1px solid var(--rule);border-radius:10px 10px 0 0;
+    transform:translateY(100%);}
+}
+@media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none;}}
 .reading.empty p{color:var(--dim);font-size:14px;margin:8px 0 0;line-height:1.5;}
 .export{margin-top:24px;border-top:1px solid var(--rule);padding-top:16px;}
 .exphead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px;}
@@ -293,6 +322,15 @@ body.viewing .viewbar{margin-top:0;}
 </div>
 
 <div id="out"></div>
+
+<div id="scrim" class="scrim"></div>
+<aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-label="Perfection in full">
+  <div class="drawerhead">
+    <span class="eyebrow">Perfection in full</span>
+    <button id="drawerclose" class="back" type="button">Close</button>
+  </div>
+  <div id="drawerbody"></div>
+</aside>
 
 <script>
 /* ── the sixteen figures; pattern reads head → neck → body → feet ── */
@@ -549,12 +587,12 @@ function perfectionOf(houses, q, s){
      already says the two figures are one, so it is not tested under it. */
   if (Fq !== Fs){
     const qside = outside.filter(h => houses[h] === Fq && aspectKindBetween(h, s));
-    if (qside.length) modes.push({mode:"Conjunction",
+    if (qside.length) modes.push({mode:"Conjunction", side:"querent",
       text:F(Fq) + ", the querent's own figure, stands again in "
         + list(qside.map(h => at(h,s))) + ". The matter perfects — but by the querent "
         + "moving toward it, not by its coming to them."});
     const sside = outside.filter(h => houses[h] === Fs && aspectKindBetween(h, q));
-    if (sside.length) modes.push({mode:"Conjunction",
+    if (sside.length) modes.push({mode:"Conjunction", side:"quesited",
       text:F(Fs) + ", the figure of the thing demanded, stands again in "
         + list(sside.map(h => at(h,q))) + ". The matter perfects, and it is the other side "
         + "that moves: it comes to the querent."});
@@ -616,6 +654,32 @@ function perfectionOf(houses, q, s){
   modes.sort((a,b) => MODE_RANK[a.mode] - MODE_RANK[b.mode]);
   return {testable:true, q:q, s:s, modes:modes,
           direct:aspectKindBetween(q,s), denied:modes.length === 0};
+}
+
+/* The one line a reader wants first: is the answer yes or no. Perfection
+   decides whether the matter comes to pass at all; the Judge decides whether
+   the yes is worth having, and only shifts the wording, never the verdict. */
+const NATURE_SCORE = {"very good":2, "good":1, "good, unstable":1, "neutral":0,
+  "mixed":0, "mobile":0, "ill":-1, "very ill":-2};
+const ROUTE = {
+  Occupation:"the matter is already as good as done",
+  Mutation:"it comes about by a road nobody is watching",
+  Translation:"it comes about through a third party"
+};
+function verdictOf(res, judgeKey){
+  if (!res.testable) return null;
+  const n = NATURE_SCORE[BY_KEY[judgeKey].nature] || 0;
+  if (res.denied) return {yes:false,
+    word:n >= 1 ? "Mostly no" : "No",
+    clause:"nothing carries the matter from the querent to the thing asked about"};
+  const top = res.modes[0];
+  return {yes:true,
+    word:n >= 1 ? "Yes" : n === 0 ? "Mostly yes" : "Yes, but badly",
+    clause:top.mode === "Conjunction"
+      ? (top.side === "querent"
+          ? "it comes about, but only if the querent goes after it"
+          : "it comes about, and the other side is what brings it")
+      : ROUTE[top.mode]};
 }
 
 function perfectionSentences(res){
@@ -1070,7 +1134,9 @@ function exportText(sh, houses, tally){
     L.push("PERFECTION  not testable — no significator chosen, so there is no second pole");
     L.push("  Choose the house of the thing demanded and the four modes are tested against house 1.");
   } else {
+    const vd = verdictOf(perf, sh.Judge);
     L.push("PERFECTION  house 1, the querent — house " + sig + ", the thing demanded");
+    L.push("  " + vd.word.toUpperCase() + " — " + vd.clause + ".");
     L.push("  Tested by aspect between the houses. Schools that test conjunction and mutation by");
     L.push("  adjacency of houses instead will read those two differently.");
     perfectionSentences(perf).forEach(t => L.push("  " + t));
@@ -1138,28 +1204,65 @@ function channelsHTML(houses, h, res){
     + '</p></div>';
 }
 
-function perfectionHTML(res){
+/* The card carries one sentence — yes or no, and by what road — because that is
+   the whole of what a reader wants on first sight. Everything behind it, the
+   mode by mode reading and the rule it was judged by, waits in the drawer. */
+function perfectionCardHTML(res, judgeKey){
   if (!res.testable)
     return '<div class="perf"><span class="eyebrow">Perfection</span>'
-      + '<p class="pnone">Name the house of the thing demanded — the significator — and the '
-      + 'four modes are tested against house 1, the querent.</p></div>';
-  const head = '<span class="eyebrow">Perfection · house ' + res.q + ' and house ' + res.s + '</span>';
-  const direct = '<p class="pdirect">' + (res.direct
-      ? 'The two houses stand in ' + res.direct.toLowerCase() + '.'
-      : 'The two houses hold no aspect to one another — nothing passes between them directly.')
-    + '</p>';
+      + '<p class="pnone">Name the house of the thing demanded \u2014 the significator \u2014 and the '
+      + 'chart will answer yes or no.</p></div>';
+  const v = verdictOf(res, judgeKey);
+  return '<div class="perf ' + (v.yes ? "hit" : "denied") + '">'
+    + '<span class="eyebrow">Perfection \u00b7 house ' + res.q + ' and house ' + res.s + '</span>'
+    + '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
+    + v.clause + '.</p>'
+    + '<button type="button" class="linkish pmore" data-explain="1">Explain more</button></div>';
+}
+
+function perfectionDetailHTML(res, judgeKey){
+  if (!res.testable) return "";
+  const v = verdictOf(res, judgeKey);
   const body = res.denied
     ? '<div class="pmode"><span class="pk deny">Denied</span><p class="ptext">None of the four '
       + 'modes holds. Nothing carries the matter from the querent to the thing demanded: it does '
-      + 'not come to pass of itself — it fails, or it is let go.</p></div>'
+      + 'not come to pass of itself \u2014 it fails, or it is let go.</p></div>'
     : res.modes.map(m => '<div class="pmode"><span class="pk">' + m.mode + '</span>'
         + '<p class="ptext">' + m.text + '</p></div>').join("");
-  return '<div class="perf ' + (res.denied ? "denied" : "hit") + '">' + head + direct + body
+  return '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
+    + v.clause + '.</p>'
+    + '<p class="pdirect">' + (res.direct
+        ? 'House ' + res.q + ' and house ' + res.s + ' stand in ' + res.direct.toLowerCase() + '.'
+        : 'House ' + res.q + ' and house ' + res.s + ' hold no aspect to one another \u2014 nothing '
+          + 'passes between them directly.')
+    + ' The Judge is ' + BY_KEY[judgeKey].name + ', ' + BY_KEY[judgeKey].nature
+    + ', which is what turns the verdict above from a bare yes or no.</p>'
+    + body
     + '<p class="pnote">Tested by aspect between the houses: occupation by one figure standing in '
     + 'both, conjunction by a significator\u2019s own figure reaching the other, mutation by the two '
     + 'meeting outside their houses, translation by a third figure standing at both ends. Schools '
-    + 'that test by adjacency of houses instead will read conjunction and mutation differently.</p>'
-    + '</div>';
+    + 'that test by adjacency of houses instead will read conjunction and mutation differently.</p>';
+}
+
+/* the drawer lives outside the re-rendered chart, so opening it animates and a
+   re-render behind it (a new significator, say) refreshes it in place */
+let explainHTML = "";
+function setExplain(html){
+  explainHTML = html;
+  if (document.body.classList.contains("explaining")) $("drawerbody").innerHTML = html;
+}
+function openExplain(){
+  if (!explainHTML) return;
+  $("drawerbody").innerHTML = explainHTML;
+  $("drawer").classList.add("open");
+  $("scrim").classList.add("open");
+  document.body.classList.add("explaining");
+  $("drawerclose").focus();
+}
+function closeExplain(){
+  $("drawer").classList.remove("open");
+  $("scrim").classList.remove("open");
+  document.body.classList.remove("explaining");
 }
 
 function render(){
@@ -1188,6 +1291,7 @@ function render(){
 
   if (!ready){
     state.currentId = null;
+    setExplain(""); closeExplain();
     $("out").innerHTML = (p.length === 0 && !parsed.error) ? savedListHTML() : "";
     return;
   }
@@ -1206,6 +1310,7 @@ function render(){
   /* the querent is always the first house; the thing demanded is the chosen
      significator, and without one there are not two poles to perfect between */
   const perf = perfectionOf(houses, 1, state.sig || 0);
+  setExplain(perfectionDetailHTML(perf, sh.Judge));
 
   const J = BY_KEY[sh.Judge];
   const wit = (label,fig) =>
@@ -1251,7 +1356,7 @@ function render(){
        : state.view === "wheel" ? wheelSVG(houses) : chartSVG(houses))
     + '<div class="legend">' + Object.keys(EL).map(e =>
         '<span class="lg"><i style="background:'+EL[e].c+'"></i>'+e+' · '+tally[e]+'</span>').join("")
-    + '</div></section><section class="side">' + perfectionHTML(perf) + reading
+    + '</div></section><section class="side">' + perfectionCardHTML(perf, sh.Judge) + reading
     + '<div class="verdict"><div class="vhead"><span class="eyebrow">Judge</span>'
     + '<span class="vname" style="color:'+EL[J.el].c+'">'+J.name+'</span></div>'
     + '<div class="vbody">'+tinted(J.key,1.7)+'<div><p class="vread">'+J.reading+'</p>'
@@ -1357,7 +1462,13 @@ function pasteFallback(){
   $("hint").textContent = "Clipboard blocked here \u2014 long-press the field and choose Paste.";
   $("hint").className = "hint bad";
 }
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.body.classList.contains("explaining")) closeExplain();
+});
 document.addEventListener("click", e => {
+  if (e.target.closest("[data-explain]")){ openExplain(); return; }
+  if (e.target.id === "scrim" || e.target.closest("#drawerclose")){ closeExplain(); return; }
+  if (e.target.closest("#drawer")) return;          /* leave the open drawer alone */
   const del = e.target.closest("[data-del]");
   if (del){
     const id = del.dataset.del;
