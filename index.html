@@ -498,7 +498,7 @@ const EL = {
   Water:{c:"var(--el-water)"}, Earth:{c:"var(--el-earth)"}
 };
 
-/* Golden Dawn allotment, Zelator 1=10. The first Mother goes to House X —
+/* Golden Dawn allotment, Zelator 1=10, and Henson house for house. The first Mother goes to House X —
    Cardinal Earth, naturally ruled by Capricorn — and the figures run
    counterclockwise: Mothers to the angles, Daughters to the succedents,
    Nieces to the cadents. To use a different method, swap this map. */
@@ -987,7 +987,7 @@ const SHIELD_TAG = {M1:"Mother 1",M2:"Mother 2",M3:"Mother 3",M4:"Mother 4",
   D1:"Daughter 1",D2:"Daughter 2",D3:"Daughter 3",D4:"Daughter 4",
   N1:"Niece 1",N2:"Niece 2",N3:"Niece 3",N4:"Niece 4",
   RW:"Right witness",LW:"Left witness",Judge:"Judge",
-  Reconciler:"Reconciler \u00b7 Judge + Mother 1 (Zelator)"};
+  Reconciler:"Reconciler \u00b7 Judge + Mother 1 (Zelator, Henson)"};
 
 function shieldSVG(sh, houses){
   const CW = 104, RH = 132, WIDE = CW*8;          /* eight columns of mothers and daughters */
@@ -1323,10 +1323,6 @@ function perfectionDetailHTML(res, judgeKey){
     + 'natures of the figures and the question actually asked is the diviner\u2019s work. Regardie '
     + 'ends the same way: write the good on one side and the evil on the other, and form the final '
     + 'judgment from the balance of them.</p>'
-    + '<p class="pdirect">The aspect between house ' + res.q + ' and house ' + res.s
-    + ' is not read, and deliberately so: it is the same in every chart ever cast, so reading it '
-    + 'would answer by the house number rather than by what fell. An aspect counts only once a '
-    + 'significator has passed to some other house.</p>'
     + body
     + '<p class="pnote">After Greer, <em>The Art and Practice of Geomancy</em>, chapter six. '
     + 'Occupation is one figure standing in both houses; conjunction, a significator passing to a '
@@ -1337,7 +1333,9 @@ function perfectionDetailHTML(res, judgeKey){
     + 'Company of houses, Greer\u2019s sixth mode, is not implemented.</p>'
     + '<p class="pnote">The rest of this chart is Golden Dawn: the allotment of figures to houses, '
     + 'the dignities, the tables, the Part of Fortune and the Reconciler all follow Regardie\u2019s '
-    + '<em>Book Eight</em> and the Zelator paper. Neither of those uses modes of perfection at all. '
+    + '<em>Book Eight</em>, the Zelator paper and Henson\u2019s <em>By the Signs of the Earth</em>, '
+    + 'which sets down the same allotment figure for figure. None of the three uses modes of '
+    + 'perfection at all. '
     + 'In the Golden Dawn method the Judge answers a yes-or-no question on its own and the house '
     + 'chart is for detail; aspects there are a tally of helping and opposing figures around the '
     + 'house asked about, not a test. Perfection is Greer\u2019s, laid over that.</p>';
