@@ -262,20 +262,21 @@ body{
 .drawer{position:fixed;top:0;right:0;height:100%;width:min(440px,92vw);z-index:41;
   background:var(--panel);border-left:1px solid var(--rule);overflow-y:auto;
   -webkit-overflow-scrolling:touch;
-  padding:18px 20px calc(24px + env(safe-area-inset-bottom));
-  padding-top:max(18px,env(safe-area-inset-top));
+  padding:0 20px calc(24px + env(safe-area-inset-bottom));
   transform:translateX(100%);visibility:hidden;
   transition:transform .26s cubic-bezier(.22,.61,.36,1),visibility 0s linear .26s;}
 .drawer.open{transform:none;visibility:visible;
   transition:transform .26s cubic-bezier(.22,.61,.36,1);}
 .drawerhead{display:flex;justify-content:space-between;align-items:center;gap:12px;
   position:sticky;top:0;z-index:1;background:var(--panel);
-  padding-bottom:11px;margin-bottom:3px;border-bottom:1px solid var(--rule);}
+  padding:max(18px,env(safe-area-inset-top)) 0 11px;
+  margin-bottom:3px;border-bottom:1px solid var(--rule);}
 body.explaining{overflow:hidden;}
 @media (max-width:560px){
   .drawer{top:auto;bottom:0;right:0;width:100%;height:auto;max-height:86vh;
     border-left:0;border-top:1px solid var(--rule);border-radius:10px 10px 0 0;
     transform:translateY(100%);}
+  .drawerhead{padding-top:18px;}   /* a bottom sheet has no notch above it */
 }
 @media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none;}}
 .reading.empty p{color:var(--dim);font-size:14px;margin:8px 0 0;line-height:1.5;}
@@ -328,7 +329,7 @@ body.viewing .viewbar{margin-top:0;}
 <div id="scrim" class="scrim"></div>
 <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-label="Perfection in full">
   <div class="drawerhead">
-    <span class="eyebrow">Perfection in full</span>
+    <span class="eyebrow" id="drawertitle">Perfection in full</span>
     <button id="drawerclose" class="back" type="button">Close</button>
   </div>
   <div id="drawerbody"></div>
@@ -1304,7 +1305,7 @@ function perfectionCardHTML(res, judgeKey){
     + '<span class="eyebrow">Perfection \u00b7 house ' + res.q + ' and house ' + res.s + '</span>'
     + '<p class="pverdict p' + (v.found ? "found" : "none") + '">' + v.line + '</p>'
     + (v.against ? '<p class="pterm">' + v.against + '</p>' : "")
-    + '<button type="button" class="linkish pmore" data-explain="1">Explain more</button></div>';
+    + '<button type="button" class="linkish pmore" data-explain="1">Explain</button></div>';
 }
 
 function perfectionDetailHTML(res, judgeKey){
@@ -1318,39 +1319,37 @@ function perfectionDetailHTML(res, judgeKey){
   }).join("");
   return '<p class="pverdict p' + (v.found ? "found" : "none") + '">' + v.line + '</p>'
     + (v.against ? '<p class="pterm">' + v.against + '</p>' : "")
-    + '<p class="pdirect">These are the findings, not a judgment. Weighing them against the '
-    + 'Judge (' + BY_KEY[judgeKey].name + ', ' + BY_KEY[judgeKey].nature + '), the witnesses, the '
-    + 'natures of the figures and the question actually asked is the diviner\u2019s work. Regardie '
-    + 'ends the same way: write the good on one side and the evil on the other, and form the final '
-    + 'judgment from the balance of them.</p>'
+    + '<p class="pdirect">Interpret the following perfections against the Judge ('
+    + BY_KEY[judgeKey].name + ', ' + BY_KEY[judgeKey].nature + '), the witnesses, the natures of '
+    + 'the figures and the question actually asked. Regardie ends the same way: write the good on '
+    + 'one side and the evil on the other, and form the final judgment from the balance of them.</p>'
     + body
     + '<p class="pnote">After Greer, <em>The Art and Practice of Geomancy</em>, chapter six. '
-    + 'Occupation is one figure standing in both houses; conjunction, a significator passing to a '
-    + 'house next to the other\u2019s; mutation, both passing to houses that lie side by side; '
-    + 'translation, a third figure standing next to both. Those four turn on houses being '
-    + 'neighbours, not on aspect. Favourable aspect \u2014 sextile or trine \u2014 is a mode of its own '
-    + 'and counts only once a significator has passed elsewhere; square and opposition deny. '
-    + 'Company of houses, Greer\u2019s sixth mode, is not implemented.</p>'
-    + '<p class="pnote">The rest of this chart is Golden Dawn: the allotment of figures to houses, '
-    + 'the dignities, the tables, the Part of Fortune and the Reconciler all follow Regardie\u2019s '
-    + '<em>Book Eight</em>, the Zelator paper and Henson\u2019s <em>By the Signs of the Earth</em>, '
-    + 'which sets down the same allotment figure for figure. None of the three uses modes of '
-    + 'perfection at all. '
-    + 'In the Golden Dawn method the Judge answers a yes-or-no question on its own and the house '
-    + 'chart is for detail; aspects there are a tally of helping and opposing figures around the '
-    + 'house asked about, not a test. Perfection is Greer\u2019s, laid over that.</p>';
+    + 'Occupation is one figure in both houses; conjunction, a significator passing next to the '
+    + 'other\u2019s; mutation, both passing to houses side by side; translation, a third figure next '
+    + 'to both \u2014 neighbouring houses, not aspect. Favourable aspect, sextile or trine, is a mode '
+    + 'of its own; square and opposition deny. Company of houses is not implemented.</p>'
+    + '<p class="pnote">The rest is Golden Dawn: allotment, dignities, tables, Part of Fortune and '
+    + 'Reconciler follow Regardie\u2019s <em>Book Eight</em>, the Zelator paper and Henson\u2019s '
+    + '<em>By the Signs of the Earth</em>. None of the three uses perfection at all \u2014 there the '
+    + 'Judge answers on its own and the houses give detail. Perfection is Greer\u2019s, laid over that.</p>';
 }
 
 /* the drawer lives outside the re-rendered chart, so opening it animates and a
    re-render behind it (a new significator, say) refreshes it in place */
-let explainHTML = "";
-function setExplain(html){
+let explainHTML = "", explainTitle = "Perfection in full";
+function setExplain(html, title){
   explainHTML = html;
-  if (document.body.classList.contains("explaining")) $("drawerbody").innerHTML = html;
+  explainTitle = title || "Perfection in full";
+  if (document.body.classList.contains("explaining")){
+    $("drawerbody").innerHTML = html;
+    $("drawertitle").textContent = explainTitle;
+  }
 }
 function openExplain(){
   if (!explainHTML) return;
   $("drawerbody").innerHTML = explainHTML;
+  $("drawertitle").textContent = explainTitle;
   $("drawer").classList.add("open");
   $("scrim").classList.add("open");
   document.body.classList.add("explaining");
@@ -1407,7 +1406,8 @@ function render(){
   /* the querent is always the first house; the thing demanded is the chosen
      significator, and without one there are not two poles to perfect between */
   const perf = perfectionOf(houses, 1, state.sig || 0);
-  setExplain(perfectionDetailHTML(perf, sh.Judge));
+  setExplain(perfectionDetailHTML(perf, sh.Judge),
+    perf.testable ? "Perfection \u00b7 house " + perf.q + " and house " + perf.s : null);
 
   const J = BY_KEY[sh.Judge];
   const wit = (label,fig) =>
@@ -1433,7 +1433,7 @@ function render(){
       + channelsHTML(houses, h, perf)
       + '</div>';
   } else {
-    reading = '<div class="reading empty"><span class="eyebrow">Reading</span>'
+    reading = '<div class="reading empty"><span class="eyebrow">Selected house</span>'
       + '<p>Tap any house in the chart to read the figure that fell there, and the channels '
       + 'along which anything reaches it.</p></div>';
   }
@@ -1610,8 +1610,12 @@ document.addEventListener("click", e => {
   if (e.target.id === "ex"){
     clearDraft();
     state.raw = "1111,1222,1221,2122";
+    state.question = "Will the book I am writing find a publisher?";
+    state.sig = 5;                       /* Issue \u2014 creation, the work of one's own hands */
     state.viewing = true;
     $("cast").value = state.raw;
+    $("question").value = state.question;
+    $("sigsel").value = "5";
     render();
     window.scrollTo(0, 0);
     return;
