@@ -235,9 +235,8 @@ body{
 /* perfection stands above the reading: it is the one verdict the chart gives
    on whether the matter comes to pass at all */
 .perf{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:16px;}
-.perf.denied{border-left:3px solid var(--err);}
-.perf.perfects{border-left:3px solid var(--citrine);}
-.perf.undecided{border-left:3px solid var(--dim);}
+.perf.found{border-left:3px solid var(--citrine);}
+.perf.none{border-left:3px solid var(--err);}
 .pmode{margin-top:13px;padding-top:11px;border-top:1px solid var(--rule);}
 .pmode:first-of-type{margin-top:10px;padding-top:0;border-top:0;}
 .pk{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.13em;
@@ -247,12 +246,11 @@ body{
 .pdirect{margin:9px 0 0;font-size:13px;line-height:1.5;color:var(--dim);}
 .pnote{margin:13px 0 0;padding-top:10px;border-top:1px solid var(--rule);
   color:var(--dim);font-size:12.5px;line-height:1.5;}
-.pnone{margin:8px 0 0;color:var(--dim);font-size:14px;line-height:1.5;}
+.pprompt{margin:8px 0 0;color:var(--dim);font-size:14px;line-height:1.5;}
 .pverdict{margin:11px 0 0;font-size:17px;line-height:1.45;}
 .pverdict strong{font-weight:600;}
-.pperfects strong{color:var(--citrine);}
-.pdenied strong{color:var(--err);}
-.pundecided strong{color:var(--dim);}
+.pfound{color:var(--citrine);}
+.pnone{color:var(--err);}
 .pterm{margin:7px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   letter-spacing:.04em;line-height:1.5;color:var(--dim);}
 .pmore{margin-top:11px;font-size:13px;}
@@ -677,38 +675,43 @@ function perfectionOf(houses, q, s){
   /* Aspect — only once a significator has passed, and never between the two
      houses of the question. Favourable perfects; square and opposition deny. */
   const seen = {};
-  const weigh = (from, at, who) => {
-    const A = aspectFrom(from, at);
-    if (!A) return;
+  /* A significator can pass to several houses and make a favourable aspect from
+     each. Greer counts that as one mode, not one per aspect \u2014 the same mistake
+     the blocking aspects made when they read "square and square and square" \u2014
+     so the passages are gathered and the mode is pushed once. Dexter and
+     sinister are kept, being a real difference in strength. */
+  const fav = [];
+  const weigh = (phrase, from, at, A) => {
     const tag = from + ":" + at + ":" + A.kind;
     if (seen[tag]) return;
     seen[tag] = 1;
-    const phrase = (who === "querent" ? F(Fq) + ", the querent's figure," : F(Fs) + ", the figure of the thing demanded,")
-      + " passes to house " + at + ", which stands in " + (A.dir ? A.dir + " " : "")
-      + lower(A.kind) + " to house " + from + ".";
-    if (A.good) modes.push({mode:"Favourable aspect", where:[at, from], dir:A.dir,
-      text:phrase + " Perfection by aspect is success by indirect means"
-        + (A.dir === "dexter"
-            ? ", and a dexter aspect, running against the order of the houses, is the stronger of the two."
-            : A.dir === "sinister"
-              ? "; a sinister aspect, running with the order of the houses, is the weaker of the two."
-              : ".")});
+    if (A.good) fav.push({phrase:phrase, dir:A.dir, at:at, from:from});
     else hard.push({kind:A.kind, house:at, text:phrase});
   };
-  passedQ.forEach(a => weigh(s, a, "querent"));
-  passedS.forEach(b => weigh(q, b, "quesited"));
+  const passPhrase = (who, at, from, A) =>
+    (who === "querent" ? F(Fq) + ", the querent's figure," : F(Fs) + ", the figure of the thing demanded,")
+    + " passes to house " + at + ", which stands in " + (A.dir ? A.dir + " " : "")
+    + lower(A.kind) + " to house " + from + ".";
+  passedQ.forEach(a => { const A = aspectFrom(s, a);
+    if (A) weigh(passPhrase("querent", a, s, A), s, a, A); });
+  passedS.forEach(b => { const A = aspectFrom(q, b);
+    if (A) weigh(passPhrase("quesited", b, q, A), q, b, A); });
   passedQ.forEach(a => passedS.forEach(b => {
     const A = aspectFrom(a, b);
     if (!A) return;
-    const tag = a + ":" + b + ":" + A.kind;
-    if (seen[tag]) return;
-    seen[tag] = 1;
-    const phrase = "Both figures pass: " + F(Fq) + " to house " + a + " and " + F(Fs)
-      + " to house " + b + ", which stand in " + (A.dir ? A.dir + " " : "") + lower(A.kind) + ".";
-    if (A.good) modes.push({mode:"Favourable aspect", where:[a,b], dir:A.dir,
-      text:phrase + " Perfection by aspect is success by indirect means."});
-    else hard.push({kind:A.kind, house:b, text:phrase});
+    weigh("Both figures pass: " + F(Fq) + " to house " + a + " and " + F(Fs) + " to house " + b
+      + ", which stand in " + (A.dir ? A.dir + " " : "") + lower(A.kind) + ".", a, b, A);
   }));
+  if (fav.length){
+    const dirs = ["dexter","sinister"].filter(d => fav.some(x => x.dir === d));
+    modes.push({mode:"Favourable aspect", dir:dirs[0] || "", dirs:dirs,
+      where:fav.map(x => x.at),
+      text:fav.map(x => x.phrase).join(" ")
+        + " Perfection by aspect is success by indirect means"
+        + (dirs.indexOf("dexter") > -1
+            ? ", and a dexter aspect, running against the order of the houses, is the stronger."
+            : "; a sinister aspect, running with the order of the houses, is the weaker of the two.")});
+  }
 
   modes.sort((a,b) => MODE_RANK[a.mode] - MODE_RANK[b.mode]);
   /* Greer: where the only perfection is an aspect and unfavourable aspects
@@ -733,44 +736,42 @@ function hardKinds(hard){
     .map(k => k.toLowerCase()).join(" and ");
 }
 
-function verdictOf(res, judgeKey){
+/* No verdict is formed here. The chart reports which perfections hold and what
+   stands against them; weighing those against the Judge, the witnesses, the
+   natures of the figures and the question actually asked is the diviner's work,
+   not the program's. Regardie's own method ends the same way \u2014 "write the good
+   on one side and the evil on the other ... and according to the balance of good
+   and evil therein form your final judgment."
+
+   What was here before ranked the modes to pick a leading one, folded the Judge's
+   quality into the sentence, and invented an Undecided state out of one line of
+   Greer. All three were editorial, and none of them is in the sources. */
+function summaryOf(res){
   if (!res.testable) return null;
-  const J = BY_KEY[judgeKey], quality = QUALITY[J.nature] || "indifferent";
-  const r = QUALITY_RANK[quality];
-  /* Perfects, Denied and Undecided rather than yes and no: most questions put
-     to a chart are not yes-or-no ones, and a bare Yes answers "how will the
-     move go?" wrongly. These are the tradition's own words and carry both. */
-  const state = res.undecided ? "undecided" : res.denied ? "denied" : "perfects";
-  const opening = state === "perfects" ? "the matter comes about"
-    : state === "undecided" ? "the matter may go either way"
-    : "the matter does not come about";
-  const tail = state === "denied"
-    ? (r >= 1 ? ", though nothing is harmed by it" : r === 0 ? "" : ", and it goes badly besides")
-    : (r === 2 ? ", and it goes very well"
-     : r === 1 ? ", and it goes well"
-     : r === 0 ? ", though the Judge is indifferent"
-     : r === -1 ? ", but it goes badly"
-     /* the last step cannot arise from a Judge: Rubeus is the only very evil
-        figure and its seven points bar it from ever being one. Kept so the
-        scale stays whole, and for figures read outside the Judge's seat. */
-     : ", but it goes very badly");
-  let route;
-  if (state === "denied")
-    route = res.impedited ? "Impedited, nothing connects them"
-      : "Blocked by " + hardKinds(res.hard) + " alone";
-  else {
-    const top = res.modes[0];
-    route = "By " + top.mode.toLowerCase()
-      + (top.mode === "Conjunction"
-          ? (top.side === "querent" ? ", the querent acting" : ", the other side acting")
-          : top.mode === "Favourable aspect" && top.dir
-            ? ", " + top.dir : ROUTE_TAG[top.mode] || "");
-    if (res.hard.length) route += ", against " + hardKinds(res.hard);
-  }
-  return {yes:state === "perfects", state:state, quality:quality,
-          word:state === "perfects" ? "Perfects" : state === "undecided" ? "Undecided" : "Denied",
-          tail:opening + tail,
-          technical:route + " \u00b7 Judge " + J.name + ", " + quality};
+  const list = a => a.length < 2 ? a.join("")
+    : a.slice(0,-1).join(", ") + " and " + a[a.length-1];
+  const named = res.modes.map(m =>
+      m.mode === "Conjunction"
+        ? "conjunction (" + (m.side === "querent" ? "the querent acting" : "the other side acting") + ")"
+    : m.mode === "Favourable aspect"
+        ? "favourable aspect" + (m.dirs && m.dirs.length ? " (" + m.dirs.join(" and ") + ")" : "")
+    : m.mode.toLowerCase());
+  /* several squares at different houses are several obstacles; several squares
+     at one house are not, so they group by kind */
+  const against = ["Square","Opposition"].map(k => {
+    const hs = [...new Set(res.hard.filter(x => x.kind === k).map(x => x.house))].sort((x,y)=>x-y);
+    return hs.length ? k.toLowerCase() + " at house" + (hs.length > 1 ? "s " : " ") + hs.join(", ") : "";
+  }).filter(Boolean);
+  return {
+    found:res.modes.length > 0,
+    count:res.modes.length,
+    line:res.modes.length
+      ? "Perfects by " + list(named) + "."
+      : res.impedited
+        ? "No perfection \u2014 nothing connects the significators."
+        : "No perfection \u2014 nothing joins them but " + hardKinds(res.hard) + ".",
+    against:against.length ? "Against: " + list(against) + "." : ""
+  };
 }
 
 function perfectionSentences(res){
@@ -1228,11 +1229,15 @@ function exportText(sh, houses, tally){
     L.push("PERFECTION  not testable — no significator chosen, so there is no second pole");
     L.push("  Choose the house of the thing demanded and the four modes are tested against house 1.");
   } else {
-    const vd = verdictOf(perf, sh.Judge);
+    const vd = summaryOf(perf);
     L.push("PERFECTION  house 1, the querent — house " + sig + ", the thing demanded");
-    L.push("  " + vd.word.toUpperCase() + " \u2014 " + vd.tail + ".   (" + vd.technical + ")");
-    L.push("  Tested by aspect between the houses. Schools that test conjunction and mutation by");
-    L.push("  adjacency of houses instead will read those two differently.");
+    L.push("  " + vd.line + (vd.against ? "   " + vd.against : ""));
+    L.push("  After Greer, chapter 6: occupation, conjunction, mutation and translation are read");
+    L.push("  from houses being NEXT TO one another; favourable aspect (sextile, trine) is a mode");
+    L.push("  of its own and counts only once a significator has passed to some other house. The");
+    L.push("  aspect between house 1 and house " + sig + " is never read. Square and opposition deny.");
+    L.push("  These are the findings, not a judgment: weigh them against the Judge, the witnesses,");
+    L.push("  the natures of the figures and the question actually asked.");
     perfectionSentences(perf).forEach(t => L.push("  " + t));
   }
   L.push("");
@@ -1292,36 +1297,32 @@ function channelsHTML(houses, h, res){
 function perfectionCardHTML(res, judgeKey){
   if (!res.testable)
     return '<div class="perf"><span class="eyebrow">Perfection</span>'
-      + '<p class="pnone">Name the house of the thing demanded \u2014 the significator \u2014 and the '
-      + 'chart will answer yes or no.</p></div>';
-  const v = verdictOf(res, judgeKey);
-  return '<div class="perf ' + v.state + '">'
+      + '<p class="pprompt">Name the house of the thing demanded \u2014 the significator \u2014 and the '
+      + 'chart will report which perfections hold between it and house 1.</p></div>';
+  const v = summaryOf(res);
+  return '<div class="perf ' + (v.found ? "found" : "none") + '">'
     + '<span class="eyebrow">Perfection \u00b7 house ' + res.q + ' and house ' + res.s + '</span>'
-    + '<p class="pverdict p' + v.state + '"><strong>' + v.word + '</strong> \u2014 '
-    + v.tail + '.</p>'
-    + '<p class="pterm">' + v.technical + '</p>'
+    + '<p class="pverdict p' + (v.found ? "found" : "none") + '">' + v.line + '</p>'
+    + (v.against ? '<p class="pterm">' + v.against + '</p>' : "")
     + '<button type="button" class="linkish pmore" data-explain="1">Explain more</button></div>';
 }
 
 function perfectionDetailHTML(res, judgeKey){
   if (!res.testable) return "";
-  const v = verdictOf(res, judgeKey);
+  const v = summaryOf(res);
   const body = perfectionSentences(res).map(t => {
     const head = t.slice(0, t.indexOf(". "));
     return '<div class="pmode"><span class="pk'
       + (/^(Impedited|Denied|Difficulties)/.test(head) ? " deny" : "") + '">' + head + '</span>'
       + '<p class="ptext">' + t.slice(t.indexOf(". ") + 2) + '</p></div>';
   }).join("");
-  return '<p class="pverdict p' + v.state + '"><strong>' + v.word + '</strong> \u2014 '
-    + v.tail + '.</p>'
-    + '<p class="pterm">' + v.technical + '</p>'
-    + '<p class="pdirect">Perfection answers whether the matter comes to pass, and answers it '
-    + 'plainly: it either perfects or it is denied. The Judge, ' + BY_KEY[judgeKey].name + ', is '
-    + v.quality + ' on the old five-step scale \u2014 very good, good, indifferent, evil, very evil '
-    + '\u2014 and that is what says whether the answer is worth having. Perfects and denied are '
-    + 'said rather than yes and no because most questions put to a chart are not yes-or-no ones: '
-    + 'to \u201cwill they call?\u201d a perfection is a yes, and to \u201chow will the move go?\u201d '
-    + 'it is the matter reaching its end, with the Judge for the substance of it.</p>'
+  return '<p class="pverdict p' + (v.found ? "found" : "none") + '">' + v.line + '</p>'
+    + (v.against ? '<p class="pterm">' + v.against + '</p>' : "")
+    + '<p class="pdirect">These are the findings, not a judgment. Weighing them against the '
+    + 'Judge (' + BY_KEY[judgeKey].name + ', ' + BY_KEY[judgeKey].nature + '), the witnesses, the '
+    + 'natures of the figures and the question actually asked is the diviner\u2019s work. Regardie '
+    + 'ends the same way: write the good on one side and the evil on the other, and form the final '
+    + 'judgment from the balance of them.</p>'
     + '<p class="pdirect">The aspect between house ' + res.q + ' and house ' + res.s
     + ' is not read, and deliberately so: it is the same in every chart ever cast, so reading it '
     + 'would answer by the house number rather than by what fell. An aspect counts only once a '
