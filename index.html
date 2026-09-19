@@ -600,8 +600,10 @@ function perfectionOf(houses, q, s){
         + "that moves: it comes to the querent."});
   }
 
-  /* Mutation — the two significators meeting somewhere other than their own
-     houses, which is why it reads as the road nobody is watching. */
+  /* Mutation — both significator figures turning up a second time, in two
+     houses that aspect each other and are neither of their own. The two never
+     share a house; it is the second copies that stand in aspect, which is why
+     it reads as the road nobody is watching. */
   if (Fq !== Fs){
     const pairs = [];
     outside.forEach(a => { if (houses[a] !== Fq) return;
@@ -612,10 +614,12 @@ function perfectionOf(houses, q, s){
       });
     });
     if (pairs.length) modes.push({mode:"Mutation",
-      text:F(Fq) + " and " + F(Fs) + " stand in aspect to one another away from the two houses "
-        + "of the question — " + list(pairs.map(x => "house " + x.a + " to house " + x.b
-        + " (" + lower(x.k) + ")")) + ". The matter perfects by a road nobody is watching; "
-        + "read those houses for where it comes from."});
+      text:"Both figures turn up a second time, outside their own houses: "
+        + list(pairs.map(x => F(Fq) + " (the querent's) in house " + x.a + " and " + F(Fs)
+            + " (the thing demanded's) in house " + x.b + ", which hold a " + lower(x.k)))
+        + ". The two never share a house — it is these second copies that stand in aspect, and "
+        + "that is the whole of the link. The matter perfects, but by a road nobody is watching: "
+        + "read " + list(pairs.map(x => "houses " + x.a + " and " + x.b)) + " for where it comes from."});
   }
 
   /* Translation — a third figure standing at both ends and carrying between
@@ -686,24 +690,30 @@ function verdictOf(res, judgeKey){
   if (!res.testable) return null;
   const J = BY_KEY[judgeKey], quality = QUALITY[J.nature] || "indifferent";
   const r = QUALITY_RANK[quality], yes = !res.denied;
+  /* "Perfects" and "Denied" rather than yes and no, and "the matter comes
+     about" rather than "yes": most questions put to a chart are not yes-or-no
+     ones, and a bare Yes answers "how will the move go?" wrongly. These are the
+     tradition's own words and they carry both readings at once. */
   const tail = yes
-    ? (r === 2 ? ", and it goes very well"
-     : r === 1 ? ", and it goes well"
-     : r === 0 ? ", though the Judge is indifferent"
-     : r === -1 ? ", but it goes badly"
-     : ", but it goes very badly")
-    : (r >= 1 ? ", though nothing is harmed by it"
-     : r === 0 ? ""
-     : ", and it goes badly besides");
-  let route = "Denied";
+    ? "the matter comes about"
+      + (r === 2 ? ", and it goes very well"
+       : r === 1 ? ", and it goes well"
+       : r === 0 ? ", though the Judge is indifferent"
+       : r === -1 ? ", but it goes badly"
+       : ", but it goes very badly")
+    : "the matter does not come about"
+      + (r >= 1 ? ", though nothing is harmed by it"
+       : r === 0 ? ""
+       : ", and it goes badly besides");
+  let route = "No mode holds";   /* the headline already says Denied */
   if (yes){
     const top = res.modes[0];
-    route = "Perfects by " + top.mode.toLowerCase()
+    route = "By " + top.mode.toLowerCase()
       + (top.mode === "Conjunction"
           ? (top.side === "querent" ? ", the querent acting" : ", the other side acting")
           : ROUTE_TAG[top.mode]);
   }
-  return {yes:yes, quality:quality, word:yes ? "Yes" : "No", tail:tail,
+  return {yes:yes, quality:quality, word:yes ? "Perfects" : "Denied", tail:tail,
           technical:route + " \u00b7 Judge " + J.name + ", " + quality};
 }
 
@@ -1161,7 +1171,7 @@ function exportText(sh, houses, tally){
   } else {
     const vd = verdictOf(perf, sh.Judge);
     L.push("PERFECTION  house 1, the querent — house " + sig + ", the thing demanded");
-    L.push("  " + vd.word.toUpperCase() + vd.tail + ".   (" + vd.technical + ")");
+    L.push("  " + vd.word.toUpperCase() + " \u2014 " + vd.tail + ".   (" + vd.technical + ")");
     L.push("  Tested by aspect between the houses. Schools that test conjunction and mutation by");
     L.push("  adjacency of houses instead will read those two differently.");
     perfectionSentences(perf).forEach(t => L.push("  " + t));
@@ -1240,7 +1250,7 @@ function perfectionCardHTML(res, judgeKey){
   const v = verdictOf(res, judgeKey);
   return '<div class="perf ' + (v.yes ? "hit" : "denied") + '">'
     + '<span class="eyebrow">Perfection \u00b7 house ' + res.q + ' and house ' + res.s + '</span>'
-    + '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong>'
+    + '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
     + v.tail + '.</p>'
     + '<p class="pterm">' + v.technical + '</p>'
     + '<button type="button" class="linkish pmore" data-explain="1">Explain more</button></div>';
@@ -1255,15 +1265,16 @@ function perfectionDetailHTML(res, judgeKey){
       + 'not come to pass of itself \u2014 it fails, or it is let go.</p></div>'
     : res.modes.map(m => '<div class="pmode"><span class="pk">' + m.mode + '</span>'
         + '<p class="ptext">' + m.text + '</p></div>').join("");
-  return '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong>'
+  return '<p class="pverdict ' + (v.yes ? "pyes" : "pno") + '"><strong>' + v.word + '</strong> \u2014 '
     + v.tail + '.</p>'
     + '<p class="pterm">' + v.technical + '</p>'
     + '<p class="pdirect">Perfection answers whether the matter comes to pass, and answers it '
     + 'plainly: it either perfects or it is denied. The Judge, ' + BY_KEY[judgeKey].name + ', is '
     + v.quality + ' on the old five-step scale \u2014 very good, good, indifferent, evil, very evil '
-    + '\u2014 and that is what says whether the answer is worth having. Where the question was not '
-    + 'a yes-or-no one, read the perfection as the matter coming to a head rather than as assent, '
-    + 'and take the Judge for the substance of the answer.</p>'
+    + '\u2014 and that is what says whether the answer is worth having. Perfects and denied are '
+    + 'said rather than yes and no because most questions put to a chart are not yes-or-no ones: '
+    + 'to \u201cwill they call?\u201d a perfection is a yes, and to \u201chow will the move go?\u201d '
+    + 'it is the matter reaching its end, with the Judge for the substance of it.</p>'
     + '<p class="pdirect">' + (res.direct
         ? 'House ' + res.q + ' and house ' + res.s + ' stand in ' + res.direct.toLowerCase() + '.'
         : 'House ' + res.q + ' and house ' + res.s + ' hold no aspect to one another \u2014 nothing '
