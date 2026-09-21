@@ -8,3 +8,6 @@
 
 # Node
 node_modules/
+
+# source books — copyrighted, and the deploy rsyncs every non-dot folder to the CDN
+docs/
