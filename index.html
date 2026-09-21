@@ -147,6 +147,14 @@ body{
   font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;padding:5px 8px;border-radius:2px;}
 .cdel:hover{color:var(--err);}
 .cdel.arm{color:var(--err);border-color:var(--err);}
+.xfer{margin-top:18px;border-top:1px solid var(--rule);padding-top:14px;}
+.xferbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.xferbar .paste{padding:9px 14px;}
+.xferbar .paste.on{color:var(--citrine);border-color:var(--citrine);}
+.xferbox{margin-top:10px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+.xferbox .expbox{min-height:130px;white-space:pre-wrap;}
+.xfermsg{font-size:14px;line-height:1.45;color:var(--dim);margin:10px 0 0;}
+.xfermsg.bad{color:var(--err);}
 .hint{color:var(--dim);font-size:14px;line-height:1.45;margin:14px 0 0;max-width:52ch;}
 
 .grid{display:grid;grid-template-columns:minmax(340px,1fr) minmax(300px,400px);gap:26px;margin-top:16px;align-items:start;}
@@ -863,7 +871,7 @@ const tinted = (fig,size) => '<span style="color:'+EL[BY_KEY[fig].el].c+'">'+gly
 /* ── state ── */
 let state = { raw:"", question:"", sig:0, viewing:false,
               selected:null, view:"square", currentId:null, pendingDel:null, editingId:null,
-              notice:null };
+              notice:null, xferOpen:false, xferMsg:null, xferBad:false };
 try { const v = localStorage.getItem("geomancy-view");
       if (v === "shield" || v === "wheel" || v === "square") state.view = v; }
 catch (e) { /* storage unavailable; the default stands */ }
@@ -893,9 +901,77 @@ function sigOptions(sel){
         '<option value="'+h+'"'+(+sel===h?" selected":"")+'>House '+h+' \u00b7 '+HOUSES[h].title+'</option>').join("");
 }
 
+/* ── carrying the record elsewhere ───────────────────────
+   Casts live in this browser only, so the whole list can be taken out as
+   JSON — copied or downloaded — and read back in by paste or by file.
+   Reading in merges: a cast already here (same id, or same points under the
+   same question) is left alone, never doubled. */
+function exportJSON(){
+  return JSON.stringify({ app:"geomantica", version:1,
+    exported:new Date().toISOString(), casts:loadCasts() }, null, 2);
+}
+
+function castFrom(o){
+  if (!o || typeof o !== "object" || typeof o.pts !== "string") return null;
+  const p = parseCast(o.pts);
+  if (p.error || p.pts.length !== 16) return null;
+  const sig = Math.floor(+o.sig), ts = +o.ts;
+  return { id: (typeof o.id === "string" || typeof o.id === "number") && String(o.id) ? String(o.id).slice(0,40) : "",
+           pts: p.pts.join(""),
+           ts: isFinite(ts) && ts > 0 ? ts : Date.now(),
+           note: typeof o.note === "string" ? o.note.slice(0,500) : "",
+           sig: sig >= 1 && sig <= 12 ? sig : 0 };
+}
+
+/* JSON as exported, or failing that one cast to a line, as in a journal */
+function readCasts(txt){
+  let data = null;
+  try { data = JSON.parse(txt); } catch (e) {}
+  if (data && !Array.isArray(data)) data = Array.isArray(data.casts) ? data.casts : [data];
+  if (data) return data.map(castFrom);
+  return txt.split(/\r?\n/).filter(line => /[12]/.test(line)).map(line => {
+    const e = parseEntry(line);
+    return castFrom(e ? { pts:e.pts, note:e.question, sig:e.sig } : { pts:line });
+  });
+}
+
+function importCasts(txt){
+  const found = readCasts(String(txt || "").trim());
+  const l = loadCasts();
+  let added = 0, dup = 0, bad = 0;
+  for (const c of found){
+    if (!c){ bad++; continue; }
+    if (l.some(x => (c.id && x.id === c.id) || (x.pts === c.pts && (x.note||"") === c.note))){ dup++; continue; }
+    if (!c.id) c.id = String(Date.now()) + Math.floor(Math.random()*1000) + added;
+    l.push(c); added++;
+  }
+  if (added){ l.sort((a,b) => b.ts - a.ts); saveCasts(l.slice(0,200)); }
+  const n = (k, w) => k + " " + w + (k === 1 ? "" : "s");
+  state.xferBad = !added && !dup;
+  state.xferMsg = !found.length ? "Nothing there could be read as a cast."
+    : [added ? n(added,"cast") + " imported" : "No new casts",
+       dup ? dup + " already here" : "",
+       bad ? bad + " unreadable" : ""].filter(Boolean).join(" \u00b7 ") + ".";
+  if (added) state.xferOpen = false;
+}
+
+function xferHTML(n){
+  return '<section class="xfer"><span class="eyebrow">Import / export</span><div class="xferbar">'
+    + '<button class="paste" type="button" data-xfer="copy"'+(n?"":" disabled")+'>Copy all</button>'
+    + '<button class="paste" type="button" data-xfer="download"'+(n?"":" disabled")+'>Download</button>'
+    + '<button class="paste'+(state.xferOpen?" on":"")+'" type="button" data-xfer="paste">Paste in</button>'
+    + '<button class="paste" type="button" data-xfer="upload">Upload</button>'
+    + '<input type="file" id="xferfile" accept=".json,.txt,application/json,text/plain" hidden></div>'
+    + (state.xferOpen ? '<div class="xferbox"><textarea class="expbox" id="xfertext" spellcheck="false" rows="6" '
+        + 'aria-label="Casts to import" placeholder="Paste exported casts here"></textarea>'
+        + '<button class="paste" type="button" data-xfer="import" style="padding:9px 14px">Import</button></div>' : "")
+    + (state.xferMsg ? '<p class="xfermsg'+(state.xferBad?" bad":"")+'" role="status">'+esc(state.xferMsg)+'</p>' : "")
+    + '</section>';
+}
+
 function savedListHTML(){
   const l = loadCasts();
-  if (!l.length) return "";
+  if (!l.length) return xferHTML(0);
   return '<section class="saved"><span class="eyebrow">Saved casts</span><ul class="savedlist">'
     + l.map(c => {
         const sh = deriveShield(c.pts.split(""));
@@ -919,7 +995,7 @@ function savedListHTML(){
               + sigOptions(c.sig||0) + '</select></div>' : "")
           + '</li>';
       }).join("")
-    + '</ul></section>';
+    + '</ul></section>' + xferHTML(l.length);
 }
 
 const SEP = /[\s,;:.\-\u2013\u2014_/\\|()\[\]]/;
@@ -1553,6 +1629,14 @@ document.addEventListener("change", e => {
   render();
 });
 
+document.addEventListener("change", e => {
+  if (e.target.id !== "xferfile" || !e.target.files[0]) return;
+  const f = e.target.files[0];
+  if (f.size > 2e6){ state.xferMsg = "That file is too large to be a list of casts."; state.xferBad = true; render(); return; }
+  f.text().then(importCasts, () => { state.xferMsg = "The file could not be read."; state.xferBad = true; })
+   .then(render);
+});
+
 $("sigsel").innerHTML = sigOptions(0);
 
 /* a pasted journal line fills the question and significator alongside the
@@ -1595,7 +1679,7 @@ $("save").addEventListener("click", () => {
 function clearDraft(){
   state.raw = ""; state.question = ""; state.sig = 0;
   state.viewing = false; state.currentId = null; state.selected = null; state.pendingDel = null;
-  state.notice = null;
+  state.notice = null; state.xferOpen = false; state.xferMsg = null;
   $("cast").value = ""; $("question").value = ""; $("sigsel").value = "0";
 }
 
@@ -1638,6 +1722,34 @@ document.addEventListener("click", e => {
     return;
   }
   if (e.target.closest(".cedit")) return;      /* leave the open editor alone */
+  const xf = e.target.closest("[data-xfer]");
+  if (xf){
+    const act = xf.dataset.xfer, say = (msg, bad) => { state.xferMsg = msg; state.xferBad = !!bad; render(); };
+    state.pendingDel = null;
+    if (act === "copy"){
+      const txt = exportJSON(), count = loadCasts().length;
+      const w = navigator.clipboard && navigator.clipboard.writeText && navigator.clipboard.writeText(txt);
+      const manual = () => { state.xferOpen = true; say("Clipboard blocked here \u2014 copy from the box below.", true);
+                             const b = $("xfertext"); if (b){ b.value = txt; b.focus(); b.select(); } };
+      if (w) w.then(() => say(count + " cast" + (count===1?"":"s") + " copied to the clipboard.")).catch(manual);
+      else manual();
+    } else if (act === "download"){
+      const url = URL.createObjectURL(new Blob([exportJSON()], { type:"application/json" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = "geomantica-casts-" + new Date().toISOString().slice(0,10) + ".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else if (act === "paste"){
+      state.xferOpen = !state.xferOpen; state.xferMsg = null; render();
+      const b = $("xfertext"); if (b) b.focus();
+    } else if (act === "upload"){
+      $("xferfile").click();
+    } else if (act === "import"){
+      importCasts($("xfertext").value); render();
+    }
+    return;
+  }
+  if (e.target.closest(".xfer")) return;       /* typing in the import box */
   if (e.target.id === "back"){
     clearDraft();
     render();
