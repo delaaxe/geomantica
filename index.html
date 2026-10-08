@@ -114,6 +114,7 @@ body{
 .sigsel{flex:0 1 auto;max-width:100%;background:var(--ground);border:1px solid var(--rule);
   color:var(--bone);border-radius:2px;
   font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;padding:9px 10px;}
+.dateinput{cursor:pointer;}
 .saved{margin-top:22px;border-top:1px solid var(--rule);padding-top:14px;}
 .savedlist{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:1px;}
 .crow{display:flex;align-items:center;gap:12px;row-gap:0;flex-wrap:wrap;padding:11px 12px;
@@ -894,6 +895,12 @@ function updateCast(id, patch){
 }
 const deleteCast = id => saveCasts(loadCasts().filter(c => c.id !== id));
 
+/* the cast's day as the date field wants it, in local time */
+function dateValue(ts){
+  const d = new Date(ts), z = n => String(n).padStart(2,"0");
+  return d.getFullYear() + "-" + z(d.getMonth()+1) + "-" + z(d.getDate());
+}
+
 /* significator options, built per row so the list can be edited in place */
 function sigOptions(sel){
   return '<option value="0">Significator \u2014 none</option>'
@@ -992,7 +999,9 @@ function savedListHTML(){
               + '<input class="noteinput" data-note="'+c.id+'" value="'+escA(c.note||"")+'" '
               + 'placeholder="Question \u2014 what was asked" spellcheck="false" aria-label="Question">'
               + '<select class="sigsel" data-sig="'+c.id+'" aria-label="Significator house">'
-              + sigOptions(c.sig||0) + '</select></div>' : "")
+              + sigOptions(c.sig||0) + '</select>'
+              + '<input class="sigsel dateinput" type="date" data-date="'+c.id+'" value="'+dateValue(c.ts)+'" '
+              + 'aria-label="Date of the cast"></div>' : "")
           + '</li>';
       }).join("")
     + '</ul></section>' + xferHTML(l.length);
@@ -1590,8 +1599,8 @@ function render(){
     + '<p class="vnat">Nature: <strong>'+J.nature+'</strong> · '+J.el+' · '+J.planet+'</p></div></div>'
     + (JUDGEABLE.has(sh.Judge) ? "" : '<p class="err">This figure cannot arise as a Judge — check the cast.</p>')
     + '<div class="wits">'
-    + wit("Right witness · the ninth and tenth figures", sh.RW)
-    + wit("Left witness · the eleventh and twelfth figures", sh.LW)
+    + wit("Right witness", sh.RW)
+    + wit("Left witness", sh.LW)
     + wit("Reconciler · Judge + house " + (state.selected || houses.sig || 1)
           + (state.selected || houses.sig ? "" : " — tap the house of the thing demanded"),
           addFig(sh.Judge, houses[state.selected || houses.sig || 1]))
@@ -1626,6 +1635,19 @@ document.addEventListener("change", e => {
   const s = e.target.closest && e.target.closest("[data-sig]");
   if (!s) return;
   updateCast(s.dataset.sig, { sig: +e.target.value });
+  render();
+});
+/* the date is edited by day only; the hour the cast was made is kept, and a
+   cleared or malformed field leaves the record as it was */
+document.addEventListener("change", e => {
+  const d = e.target.closest && e.target.closest("[data-date]");
+  if (!d) return;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(e.target.value);
+  const c = m && getCast(d.dataset.date);
+  if (!c){ render(); return; }
+  const old = new Date(c.ts);
+  const ts = new Date(+m[1], +m[2]-1, +m[3], old.getHours(), old.getMinutes(), old.getSeconds()).getTime();
+  if (isFinite(ts)) updateCast(c.id, { ts: ts });
   render();
 });
 
