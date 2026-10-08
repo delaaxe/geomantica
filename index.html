@@ -1647,7 +1647,10 @@ document.addEventListener("change", e => {
   if (!c){ render(); return; }
   const old = new Date(c.ts);
   const ts = new Date(+m[1], +m[2]-1, +m[3], old.getHours(), old.getMinutes(), old.getSeconds()).getTime();
-  if (isFinite(ts)) updateCast(c.id, { ts: ts });
+  if (isFinite(ts)){
+    updateCast(c.id, { ts: ts });
+    saveCasts(loadCasts().sort((a,b) => b.ts - a.ts));   /* the list stays newest first */
+  }
   render();
 });
 
