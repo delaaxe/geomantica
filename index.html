@@ -871,7 +871,7 @@ const tinted = (fig,size) => '<span style="color:'+EL[BY_KEY[fig].el].c+'">'+gly
 
 /* ── state ── */
 let state = { raw:"", question:"", sig:0, viewing:false,
-              selected:null, view:"square", currentId:null, pendingDel:null, editingId:null,
+              selected:null, view:"square", currentId:null, pendingDel:null, editingId:null, editOrder:null,
               notice:null, xferOpen:false, xferMsg:null, xferBad:false };
 try { const v = localStorage.getItem("geomancy-view");
       if (v === "shield" || v === "wheel" || v === "square") state.view = v; }
@@ -980,8 +980,16 @@ function xferHTML(n){
 }
 
 function savedListHTML(){
-  const l = loadCasts();
+  let l = loadCasts();
   if (!l.length) return xferHTML(0);
+  /* while a record is being edited the rows hold their places, so a date
+     being changed does not carry the open editor up and down the list; the
+     order is taken up again when Done is tapped */
+  if (state.editingId){
+    if (!state.editOrder) state.editOrder = l.map(c => c.id);
+    const pos = {}; state.editOrder.forEach((id,i) => pos[id] = i);
+    l = l.slice().sort((a,b) => (a.id in pos ? pos[a.id] : -1) - (b.id in pos ? pos[b.id] : -1));
+  } else state.editOrder = null;
   return '<section class="saved"><span class="eyebrow">Saved casts</span><ul class="savedlist">'
     + l.map(c => {
         const sh = deriveShield(c.pts.split(""));
@@ -1740,6 +1748,7 @@ document.addEventListener("click", e => {
   if (ed){
     const id = ed.dataset.edit;
     state.editingId = state.editingId === id ? null : id;
+    state.editOrder = null;                   /* the rows take their places afresh */
     state.pendingDel = null;
     render();
     const field = document.querySelector('[data-note="'+id+'"]');
