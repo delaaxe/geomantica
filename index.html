@@ -879,8 +879,11 @@ catch (e) { /* storage unavailable; the default stands */ }
 const $ = id => document.getElementById(id);
 const STORE = "geomancy-casts";
 
-function loadCasts(){ try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch (e) { return []; } }
-function saveCasts(l){ try { localStorage.setItem(STORE, JSON.stringify(l)); } catch (e) {} }
+/* the list is kept newest first, whatever order it was written in: a date can
+   be edited, and a cast saved again takes the present as its time */
+const byDate = l => l.sort((a,b) => (+b.ts||0) - (+a.ts||0));
+function loadCasts(){ try { return byDate(JSON.parse(localStorage.getItem(STORE)) || []); } catch (e) { return []; } }
+function saveCasts(l){ try { localStorage.setItem(STORE, JSON.stringify(byDate(l))); } catch (e) {} }
 function rememberCast(pts, note, sig){
   const l = loadCasts();
   for (const c of l) if (c.pts === pts && (c.note||"") === (note||"")){ c.sig = sig; c.ts = Date.now(); saveCasts(l); return c.id; }
@@ -952,7 +955,7 @@ function importCasts(txt){
     if (!c.id) c.id = String(Date.now()) + Math.floor(Math.random()*1000) + added;
     l.push(c); added++;
   }
-  if (added){ l.sort((a,b) => b.ts - a.ts); saveCasts(l.slice(0,200)); }
+  if (added) saveCasts(byDate(l).slice(0,200));
   const n = (k, w) => k + " " + w + (k === 1 ? "" : "s");
   state.xferBad = !added && !dup;
   state.xferMsg = !found.length ? "Nothing there could be read as a cast."
@@ -1647,10 +1650,7 @@ document.addEventListener("change", e => {
   if (!c){ render(); return; }
   const old = new Date(c.ts);
   const ts = new Date(+m[1], +m[2]-1, +m[3], old.getHours(), old.getMinutes(), old.getSeconds()).getTime();
-  if (isFinite(ts)){
-    updateCast(c.id, { ts: ts });
-    saveCasts(loadCasts().sort((a,b) => b.ts - a.ts));   /* the list stays newest first */
-  }
+  if (isFinite(ts)) updateCast(c.id, { ts: ts });
   render();
 });
 
